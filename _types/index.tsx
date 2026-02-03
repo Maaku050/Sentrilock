@@ -1,12 +1,16 @@
 import { Timestamp } from "firebase/firestore";
 
-export type Profiles = {
+export interface Profiles {
   id: string;
   name: string;
   email: string;
   phone: string;
   imageUrl: string;
-};
+  registeredDate: Date;
+  updatedAt?: Date;
+  // Index signature to allow dynamic room permission keys
+  [key: string]: string | Date | boolean | undefined;
+}
 
 export type Rooms = {
   id: string;

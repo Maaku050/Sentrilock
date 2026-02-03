@@ -1,4 +1,4 @@
-// components/userDetailModal.tsx
+// components/userDetailModal.tsx - FIXED VERSION
 import {
   Modal,
   ModalBackdrop,
@@ -29,6 +29,9 @@ import {
   MapPin,
   Activity,
   Camera,
+  Lock,
+  Unlock,
+  Shield,
 } from "lucide-react-native";
 import { useTheme } from "../app/screens/_layout";
 import { Profiles } from "@/_types";
@@ -41,9 +44,17 @@ import {
   FormControlError,
 } from "@/components/ui/form-control";
 import { db, storage } from "@/firebase/firebaseConfig";
-import { doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
+import {
+  Checkbox,
+  CheckboxIndicator,
+  CheckboxIcon,
+  CheckboxLabel,
+} from "@/components/ui/checkbox";
+import { CheckIcon } from "@/components/ui/icon";
+import { collection, getDocs } from "firebase/firestore";
 
 interface UserDetailModalProps {
   visible: boolean;
@@ -51,6 +62,11 @@ interface UserDetailModalProps {
   user: Profiles | null;
   onEdit?: (user: Profiles) => void;
   onDelete?: (userId: string) => void;
+}
+
+interface Room {
+  id: string;
+  name: string;
 }
 
 export function UserDetailModal({
@@ -72,6 +88,19 @@ export function UserDetailModal({
   const [phone, setPhone] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
+
+  // NEW: Store fresh user data
+  const [freshUserData, setFreshUserData] = useState<Profiles | null>(null);
+
+  // Helper function to safely convert Firestore Timestamp or Date to Date
+  const toDate = (timestamp: any): Date => {
+    if (!timestamp) return new Date();
+    if (timestamp instanceof Date) return timestamp;
+    if (typeof timestamp.toDate === "function") return timestamp.toDate();
+    return new Date();
+  };
 
   const handleReset = () => {
     setEmail("");
@@ -88,17 +117,80 @@ export function UserDetailModal({
     border: isDark ? "#2a2a2a" : "#e5e7eb",
     accent: isDark ? "#3b82f6" : "#2563eb",
     accentLight: isDark ? "#1e3a8a" : "#dbeafe",
+    success: isDark ? "#10b981" : "#059669",
+    successLight: isDark ? "#064e3b" : "#d1fae5",
+    danger: isDark ? "#ef4444" : "#dc2626",
+    dangerLight: isDark ? "#7f1d1d" : "#fee2e2",
   };
 
-  // Initialize form with user data
+  // Fetch fresh user data from Firestore
   useEffect(() => {
-    if (user) {
-      setName(user.name);
-      setEmail(user.email);
-      setPhone(user.phone);
-      setImageUri(user.imageUrl || null);
+    const fetchUserData = async () => {
+      if (!user?.id || !visible) return;
+
+      try {
+        const userDoc = await getDoc(doc(db, "known_persons", user.id));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+
+          setFreshUserData({
+            id: userDoc.id,
+            name: data.name,
+            email: data.email,
+            phone: data.phone,
+            imageUrl: data.imageUrl,
+            registeredDate: toDate(data.registeredDate),
+            updatedAt: toDate(data.updatedAt),
+            ...data, // Include all other fields including room permissions
+          } as Profiles);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.id, visible]);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const roomsSnapshot = await getDocs(collection(db, "rooms"));
+        const roomsData = roomsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          name: doc.data().name || doc.id,
+        }));
+        setRooms(roomsData);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+      }
+    };
+
+    if (visible) {
+      fetchRooms();
     }
-  }, [user]);
+  }, [visible]);
+
+  // Initialize form with user data - USE FRESH DATA
+  useEffect(() => {
+    const currentUser = freshUserData || user;
+    if (currentUser && rooms.length > 0) {
+      setName(currentUser.name);
+      setEmail(currentUser.email);
+      setPhone(currentUser.phone);
+      setImageUri(currentUser.imageUrl || null);
+
+      // Initialize room permissions
+      const userRooms = new Set<string>();
+      rooms.forEach((room) => {
+        const roomPermission = currentUser[room.id];
+        if (roomPermission === true) {
+          userRooms.add(room.id);
+        }
+      });
+      setSelectedRooms(userRooms);
+    }
+  }, [freshUserData, user, rooms]);
 
   // Filter logs for this specific user
   const userLogs = useMemo(() => {
@@ -174,28 +266,50 @@ export function UserDetailModal({
 
       let imageUrl = user.imageUrl;
 
-      // Upload new image if changed
       if (imageUri && imageUri !== user.imageUrl) {
         imageUrl = await uploadImage(imageUri, user.id);
       }
 
-      // Update Firestore
+      // Prepare room permissions update
+      const roomPermissions: Record<string, boolean> = {};
+      rooms.forEach((room) => {
+        roomPermissions[room.id] = selectedRooms.has(room.id);
+      });
+
       const userRef = doc(db, "known_persons", user.id);
       await updateDoc(userRef, {
         name,
         email,
         phone,
         imageUrl,
+        ...roomPermissions,
         updatedAt: new Date(),
       });
 
-      handleReset();
-      onClose();
+      // Refresh user data
+      const updatedDoc = await getDoc(userRef);
+      if (updatedDoc.exists()) {
+        const data = updatedDoc.data();
 
-      // Call the onEdit callback if provided
-      if (onEdit) {
-        onEdit({ ...user, name, email, phone, imageUrl });
+        setFreshUserData({
+          id: updatedDoc.id,
+          name: data.name,
+          email: data.email,
+          phone: data.phone,
+          imageUrl: data.imageUrl,
+          registeredDate: toDate(data.registeredDate),
+          updatedAt: toDate(data.updatedAt),
+          ...data,
+        } as Profiles);
       }
+
+      handleReset();
+
+      if (onEdit) {
+        onEdit({ ...user, name, email, phone, imageUrl, ...roomPermissions });
+      }
+
+      Alert.alert("Success", "User updated successfully");
     } catch (error) {
       console.error("Error updating user:", error);
       Alert.alert("Error", "Failed to update user");
@@ -210,14 +324,12 @@ export function UserDetailModal({
     try {
       setLoading(true);
 
-      // Delete from Firestore
       const userRef = doc(db, "known_persons", user.id);
       await deleteDoc(userRef);
 
       Alert.alert("Success", "User deleted successfully");
       setShowDeleteConfirm(false);
 
-      // Call the onDelete callback if provided
       if (onDelete) {
         onDelete(user.id);
       }
@@ -232,11 +344,21 @@ export function UserDetailModal({
   };
 
   const handleCancel = () => {
-    if (user) {
-      setName(user.name);
-      setEmail(user.email);
-      setPhone(user.phone);
-      setImageUri(user.imageUrl || null);
+    const currentUser = freshUserData || user;
+    if (currentUser && rooms.length > 0) {
+      setName(currentUser.name);
+      setEmail(currentUser.email);
+      setPhone(currentUser.phone);
+      setImageUri(currentUser.imageUrl || null);
+
+      const userRooms = new Set<string>();
+      rooms.forEach((room) => {
+        const roomPermission = currentUser[room.id];
+        if (roomPermission === true) {
+          userRooms.add(room.id);
+        }
+      });
+      setSelectedRooms(userRooms);
     }
     setIsEditing(false);
     setErrors({});
@@ -269,7 +391,20 @@ export function UserDetailModal({
       .join(" ");
   };
 
+  const toggleRoom = (roomId: string) => {
+    const newSelected = new Set(selectedRooms);
+    if (newSelected.has(roomId)) {
+      newSelected.delete(roomId);
+    } else {
+      newSelected.add(roomId);
+    }
+    setSelectedRooms(newSelected);
+  };
+
   if (!user) return null;
+
+  // Use fresh data if available
+  const displayUser = freshUserData || user;
 
   return (
     <>
@@ -279,11 +414,15 @@ export function UserDetailModal({
           style={{
             backgroundColor: theme.background,
             maxWidth: 1200,
-            height: "90%",
+            maxHeight: "90%",
           }}
         >
           <ModalHeader
-            style={{ borderBottomWidth: 1, borderBottomColor: theme.border }}
+            style={{
+              borderBottomWidth: 1,
+              borderBottomColor: theme.border,
+              paddingBottom: 5,
+            }}
           >
             <Heading size="xl" style={{ color: theme.text }}>
               {isEditing ? "Edit User" : "User Details"}
@@ -293,14 +432,20 @@ export function UserDetailModal({
             </ModalCloseButton>
           </ModalHeader>
 
-          <ModalBody>
-            <HStack space="lg" style={{ flex: 1 }}>
+          <ModalBody showsHorizontalScrollIndicator={false}>
+            <HStack
+              space="lg"
+              style={{
+                flex: 1,
+                borderWidth: 0,
+                maxHeight: 600,
+              }}
+            >
               {/* Left Section - User Details */}
               <VStack
                 space="lg"
                 style={{
                   flex: 1,
-                  maxWidth: 400,
                   padding: 16,
                   backgroundColor: theme.cardBg,
                   borderRadius: 12,
@@ -346,7 +491,7 @@ export function UserDetailModal({
                           marginBottom: 4,
                         }}
                       >
-                        {user.name}
+                        {displayUser.name}
                       </Heading>
                       <Text
                         style={{
@@ -355,7 +500,7 @@ export function UserDetailModal({
                           fontSize: 12,
                         }}
                       >
-                        User ID: {user.id}
+                        User ID: {displayUser.id}
                       </Text>
                     </View>
                   ) : (
@@ -422,7 +567,7 @@ export function UserDetailModal({
                           Email
                         </Text>
                         <Text style={{ color: theme.text, fontSize: 14 }}>
-                          {user.email}
+                          {displayUser.email}
                         </Text>
                       </VStack>
                     </HStack>
@@ -476,7 +621,7 @@ export function UserDetailModal({
                           Phone
                         </Text>
                         <Text style={{ color: theme.text, fontSize: 14 }}>
-                          {user.phone}
+                          {displayUser.phone}
                         </Text>
                       </VStack>
                     </HStack>
@@ -509,6 +654,230 @@ export function UserDetailModal({
                     </FormControl>
                   )}
                 </VStack>
+
+                {/* IMPROVED Room Permissions Section - EDITING MODE */}
+                {isEditing && (
+                  <>
+                    <Divider style={{ backgroundColor: theme.border }} />
+
+                    <VStack space="md">
+                      <HStack space="sm" style={{ alignItems: "center" }}>
+                        <Shield size={16} color={theme.accent} />
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontSize: 14,
+                            fontWeight: "600",
+                          }}
+                        >
+                          Room Access Permissions
+                        </Text>
+                      </HStack>
+
+                      <VStack
+                        space="xs"
+                        style={{
+                          backgroundColor: theme.background,
+                          padding: 12,
+                          borderRadius: 8,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                        }}
+                      >
+                        {rooms.length === 0 ? (
+                          <Text
+                            style={{
+                              color: theme.textMuted,
+                              textAlign: "center",
+                              paddingVertical: 12,
+                            }}
+                          >
+                            No rooms available
+                          </Text>
+                        ) : (
+                          rooms.map((room) => (
+                            <View
+                              key={room.id}
+                              style={{
+                                backgroundColor: selectedRooms.has(room.id)
+                                  ? theme.successLight
+                                  : theme.cardBg,
+                                borderRadius: 8,
+                                padding: 12,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: selectedRooms.has(room.id)
+                                  ? theme.success
+                                  : theme.border,
+                              }}
+                            >
+                              <Checkbox
+                                value={room.id}
+                                isChecked={selectedRooms.has(room.id)}
+                                onChange={() => toggleRoom(room.id)}
+                                size="md"
+                              >
+                                <CheckboxIndicator>
+                                  <CheckboxIcon as={CheckIcon} />
+                                </CheckboxIndicator>
+                                <CheckboxLabel
+                                  style={{
+                                    color: selectedRooms.has(room.id)
+                                      ? theme.success
+                                      : theme.text,
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {room.name}
+                                </CheckboxLabel>
+                              </Checkbox>
+                            </View>
+                          ))
+                        )}
+                      </VStack>
+
+                      <Text
+                        style={{
+                          color: theme.textMuted,
+                          fontSize: 11,
+                          fontStyle: "italic",
+                        }}
+                      >
+                        💡 Select which rooms this person can access
+                      </Text>
+                    </VStack>
+                  </>
+                )}
+
+                {/* IMPROVED Room Permissions Section - VIEW MODE */}
+                {!isEditing && rooms.length > 0 && (
+                  <>
+                    <Divider style={{ backgroundColor: theme.border }} />
+
+                    <VStack space="md">
+                      <HStack
+                        space="sm"
+                        style={{
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <HStack space="sm" style={{ alignItems: "center" }}>
+                          <Shield size={16} color={theme.accent} />
+                          <Text
+                            style={{
+                              color: theme.text,
+                              fontSize: 14,
+                              fontWeight: "600",
+                            }}
+                          >
+                            Room Access Permissions
+                          </Text>
+                        </HStack>
+                        <Text
+                          style={{
+                            color: theme.textMuted,
+                            fontSize: 11,
+                          }}
+                        >
+                          {selectedRooms.size} / {rooms.length} rooms
+                        </Text>
+                      </HStack>
+
+                      <VStack space="xs">
+                        {rooms.map((room) => {
+                          const roomPermission = displayUser[room.id];
+                          const hasAccess = roomPermission === true;
+
+                          return (
+                            <HStack
+                              key={room.id}
+                              space="sm"
+                              style={{
+                                padding: 12,
+                                backgroundColor: hasAccess
+                                  ? theme.successLight
+                                  : theme.dangerLight,
+                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderColor: hasAccess
+                                  ? theme.success
+                                  : theme.danger,
+                                alignItems: "center",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: hasAccess
+                                    ? theme.success + "30"
+                                    : theme.danger + "30",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                }}
+                              >
+                                {hasAccess ? (
+                                  <Unlock size={16} color={theme.success} />
+                                ) : (
+                                  <Lock size={16} color={theme.danger} />
+                                )}
+                              </View>
+
+                              <VStack style={{ flex: 1 }}>
+                                <Text
+                                  style={{
+                                    color: hasAccess
+                                      ? theme.success
+                                      : theme.danger,
+                                    fontSize: 13,
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {room.name}
+                                </Text>
+                                <Text
+                                  style={{
+                                    color: theme.textMuted,
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  {hasAccess
+                                    ? "Access granted"
+                                    : "Access denied"}
+                                </Text>
+                              </VStack>
+
+                              <View
+                                style={{
+                                  paddingHorizontal: 10,
+                                  paddingVertical: 4,
+                                  backgroundColor: hasAccess
+                                    ? theme.success + "20"
+                                    : theme.danger + "20",
+                                  borderRadius: 12,
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    color: hasAccess
+                                      ? theme.success
+                                      : theme.danger,
+                                    fontSize: 11,
+                                    fontWeight: "700",
+                                  }}
+                                >
+                                  {hasAccess ? "✓ ALLOWED" : "✗ BLOCKED"}
+                                </Text>
+                              </View>
+                            </HStack>
+                          );
+                        })}
+                      </VStack>
+                    </VStack>
+                  </>
+                )}
 
                 <Divider style={{ backgroundColor: theme.border }} />
 
@@ -580,7 +949,6 @@ export function UserDetailModal({
                   borderRadius: 12,
                   borderWidth: 1,
                   borderColor: theme.border,
-                  maxHeight: 430,
                 }}
               >
                 <HStack
@@ -640,7 +1008,7 @@ export function UserDetailModal({
                 ) : (
                   <ScrollView
                     style={{ flex: 1 }}
-                    showsVerticalScrollIndicator={false}
+                    showsVerticalScrollIndicator={true}
                   >
                     <VStack space="sm">
                       {userLogs.map((log) => {

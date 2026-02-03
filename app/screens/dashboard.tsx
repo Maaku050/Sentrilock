@@ -1,5 +1,4 @@
-// app/screens/dashboard.tsx (UPDATED with Security Alert Detection)
-import { useRouter } from "expo-router";
+// app/screens/dashboard.tsx
 import React, { useState, useMemo } from "react";
 import {
   Text,
@@ -7,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useTheme } from "./_layout";
 import { useLogs } from "@/context/dashboardContext";
@@ -20,11 +20,14 @@ import {
   Search,
   Filter,
   X,
+  Printer,
 } from "lucide-react-native";
 import { FilterModal } from "@/components/filterModal";
 import { Input, InputField } from "@/components/ui/input";
 import NotificationHandler from "@/components/NotificationHandler";
 import { SecurityAlertBanner } from "@/components/SecurityAlertBanner";
+import * as Print from "expo-print";
+import { AdminGuard } from "@/components/AdminGuard";
 
 export type FilterOptions = {
   dateRange: {
@@ -36,7 +39,6 @@ export type FilterOptions = {
 };
 
 export default function DashboardScreen() {
-  const router = useRouter();
   const { logs, loading, error, roomsUI, rooms } = useLogs();
   const { isDark } = useTheme();
 
@@ -194,6 +196,246 @@ export default function DashboardScreen() {
     }
   };
 
+  const handlePrintLogs = async () => {
+    try {
+      // Generate HTML for the print document
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Activity Logs Report</title>
+          <style>
+            body {
+              font-family: 'Times New Roman', Times, serif;
+              padding: 40px;
+              max-width: 900px;
+              margin: 0 auto;
+              color: #000;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #000;
+              padding-bottom: 15px;
+            }
+            h1 {
+              margin: 0 0 5px 0;
+              font-size: 24px;
+              font-weight: bold;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+            }
+            .report-date {
+              font-size: 12px;
+              color: #333;
+              font-style: italic;
+            }
+            .summary {
+              margin-bottom: 25px;
+              font-size: 13px;
+            }
+            .summary strong {
+              font-weight: bold;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+              font-size: 12px;
+            }
+            thead {
+              background-color: #000;
+              color: #fff;
+            }
+            th {
+              padding: 10px 8px;
+              text-align: left;
+              font-weight: bold;
+              text-transform: uppercase;
+              font-size: 11px;
+              letter-spacing: 0.5px;
+            }
+            td {
+              padding: 10px 8px;
+              border-bottom: 1px solid #ddd;
+              vertical-align: top;
+            }
+            tbody tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            tbody tr:hover {
+              background-color: #f0f0f0;
+            }
+            .action-cell {
+              font-weight: 600;
+            }
+            .action-authorized {
+              color: #047857;
+            }
+            .action-leaving {
+              color: #d97706;
+            }
+            .action-unauthorized {
+              color: #dc2626;
+            }
+            .action-admin {
+              color: #2563eb;
+            }
+            .room-cell {
+              font-family: monospace;
+              background-color: #f3f4f6;
+              padding: 4px 8px;
+              border-radius: 4px;
+              display: inline-block;
+            }
+            .no-data {
+              text-align: center;
+              padding: 40px;
+              color: #666;
+              font-style: italic;
+            }
+            .footer {
+              margin-top: 30px;
+              padding-top: 15px;
+              border-top: 2px solid #000;
+              text-align: center;
+              font-size: 11px;
+              color: #666;
+            }
+            @media print {
+              body {
+                padding: 20px;
+              }
+              table {
+                page-break-inside: auto;
+              }
+              tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+              }
+              thead {
+                display: table-header-group;
+              }
+              .footer {
+                position: fixed;
+                bottom: 0;
+                width: 100%;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Activity Logs Report</h1>
+            <p class="report-date">Generated on ${new Date().toLocaleString(
+              "en-US",
+              {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              },
+            )}</p>
+          </div>
+          
+          <div class="summary">
+            <strong>Total Records:</strong> ${filteredLogs.length} ${searchQuery || hasActiveFilters ? `(filtered from ${logs.length} total)` : ""}
+          </div>
+          
+          ${
+            filteredLogs.length === 0
+              ? '<div class="no-data">No activity logs to display</div>'
+              : `
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 15%;">Date & Time</th>
+                <th style="width: 25%;">Action</th>
+                <th style="width: 15%;">Room</th>
+                <th style="width: 45%;">User</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredLogs
+                .map((log) => {
+                  const actionClass =
+                    log.action === "authorized_entry"
+                      ? "authorized"
+                      : log.action === "user_leaving"
+                        ? "leaving"
+                        : log.action === "unauthorized_attempt"
+                          ? "unauthorized"
+                          : log.action === "admin_control"
+                            ? "admin"
+                            : "";
+
+                  const timestamp = log?.timestamp
+                    ? log.timestamp.toDate().toLocaleString("en-US", {
+                        month: "short",
+                        day: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      })
+                    : "N/A";
+
+                  const userName =
+                    log?.user?.name === "null" || !log?.user?.name
+                      ? "Unknown User"
+                      : log.user.name;
+
+                  return `
+                <tr>
+                  <td>${timestamp}</td>
+                  <td class="action-cell action-${actionClass}">${formatAction(log.action)}</td>
+                  <td><span class="room-cell">${log.roomId}</span></td>
+                  <td>${userName}</td>
+                </tr>
+              `;
+                })
+                .join("")}
+            </tbody>
+          </table>
+          `
+          }
+          
+          <div class="footer">
+            <p>Activity Logs Report | Page 1 | Confidential</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Use expo-print for all platforms
+      if (Platform.OS === "web") {
+        // For web, open in new window
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+          }, 250);
+        }
+      } else {
+        // For mobile (iOS/Android), use expo-print
+        await Print.printAsync({
+          html,
+        });
+      }
+    } catch (error) {
+      console.error("Error printing logs:", error);
+      // You could add a toast notification here to inform the user
+    }
+  };
+
   return (
     <>
       {/* Security Alert Banner - Shows on consecutive unauthorized attempts */}
@@ -264,6 +506,33 @@ export default function DashboardScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Print Button */}
+              <TouchableOpacity
+                onPress={handlePrintLogs}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: theme.inputBg,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  paddingHorizontal: 12,
+                  height: 40,
+                  gap: 6,
+                }}
+              >
+                <Printer size={18} color={theme.text} />
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 14,
+                    fontWeight: "600",
+                  }}
+                >
+                  Print
+                </Text>
+              </TouchableOpacity>
 
               {/* Filter Button */}
               <TouchableOpacity

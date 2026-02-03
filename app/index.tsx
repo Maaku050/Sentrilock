@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { saveAdminSession } from "@/utils/adminAuth";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -25,11 +26,13 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    setErrorMessage(""); // Clear previous errors
+    setErrorMessage("");
 
-    // Simple authentication with hardcoded credentials
-    setTimeout(() => {
+    setTimeout(async () => {
       if (email === "admin" && password === "123456") {
+        // Save admin session
+        await saveAdminSession("admin_user_001"); // ✅ Fixed admin ID
+
         setIsLoading(false);
         router.replace("/screens/dashboard");
       } else {
@@ -50,7 +53,14 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.keyboardView}
         >
-          <View style={{ flex: 1, padding: 15 }}>
+          <View
+            style={{
+              flex: 1,
+              padding: 15,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             {/* Error Banner */}
             {errorMessage ? (
               <View style={styles.errorBanner}>
@@ -124,9 +134,9 @@ export default function LoginScreen() {
               </View>
 
               {/* Forgot Password */}
-              <TouchableOpacity style={styles.forgotPassword}>
+              {/* <TouchableOpacity style={styles.forgotPassword}>
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Login Button */}
               <TouchableOpacity

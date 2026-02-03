@@ -1,6 +1,6 @@
 // app/screens/registeredUsers.tsx
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import { View, TouchableOpacity, Pressable, Alert } from "react-native";
 import { Card } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
@@ -16,6 +16,7 @@ import {
   Edit,
   Trash2,
   RefreshCw,
+  DoorOpen,
 } from "lucide-react-native";
 import { RegisterModal } from "@/components/registerModal";
 import { UserDetailModal } from "@/components/userDetailModal";
@@ -26,28 +27,88 @@ import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Divider } from "@/components/ui/divider";
 import { Profiles } from "@/_types";
+import { useUsers } from "@/context/usersContext";
+import { useRooms, Room } from "@/context/roomsContext";
+import { doc, deleteDoc } from "firebase/firestore";
+import { db } from "@/firebase/firebaseConfig";
+import { AdminGuard } from "@/components/AdminGuard";
 
-// Replace with your actual cloud function URL
-const API_BASE_URL = "https://esp32cam-b5bx42kifq-uc.a.run.app";
+// Helper function to format room names for display
+const formatRoomName = (roomId: string): string => {
+  // Convert roomId to a readable format
+  // Examples:
+  // "room1" -> "Room 1"
+  // "living_room" -> "Living Room"
+  // "bedroom1" -> "Bedroom 1"
+  // "office" -> "Office"
+  return roomId
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+    .replace(/(\d+)/g, " $1")
+    .trim();
+};
 
-interface ApiResponse {
-  status: "success" | "error";
-  count?: number;
-  persons?: Profiles[];
-  message?: string;
-  error?: string;
-}
+// Helper function to get authorized rooms from user data
+// This works by scanning the user object for boolean fields that represent rooms
+const getAuthorizedRooms = (
+  user: Profiles,
+  availableRooms: Room[],
+): string[] => {
+  const authorizedRooms: string[] = [];
+
+  // Fields to exclude from room detection (these are known user fields, not rooms)
+  const excludedFields = [
+    "id",
+    "embedding",
+    "name",
+    "email",
+    "phone",
+    "imageUrl",
+    "imagePath",
+    "registeredAt",
+    "updatedAt",
+    "status",
+  ];
+
+  // If we have rooms from API, use those
+  if (availableRooms && availableRooms.length > 0) {
+    availableRooms.forEach((room) => {
+      const roomField = user[room.id as keyof Profiles];
+      if (roomField === true) {
+        authorizedRooms.push(room.id);
+      }
+    });
+  } else {
+    // Fallback: scan user object for boolean fields that could be rooms
+    Object.keys(user).forEach((key) => {
+      // Check if it's a boolean field and not in excluded list
+      if (
+        !excludedFields.includes(key) &&
+        typeof user[key as keyof Profiles] === "boolean"
+      ) {
+        // Only add if the value is true
+        if (user[key as keyof Profiles] === true) {
+          authorizedRooms.push(key);
+        }
+      }
+    });
+  }
+
+  return authorizedRooms;
+};
 
 export default function UsersScreen() {
   const { isDark } = useTheme();
-  const [profiles, setProfiles] = useState<Profiles[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { profiles, loading: usersLoading, refreshProfiles } = useUsers();
+  const { rooms, loading: roomsLoading } = useRooms();
+
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profiles | null>(null);
   const [showUserDetail, setShowUserDetail] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  const loading = usersLoading || roomsLoading;
 
   const theme = {
     background: isDark ? "#000" : "#fff",
@@ -59,59 +120,17 @@ export default function UsersScreen() {
     border: isDark ? "#2a2a2a" : "#e5e7eb",
     accent: isDark ? "#3b82f6" : "#2563eb",
     accentLight: isDark ? "#1e3a8a" : "#dbeafe",
+    success: isDark ? "#10b981" : "#059669",
+    successLight: isDark ? "#064e3b" : "#d1fae5",
     error: isDark ? "#ef4444" : "#dc2626",
   };
 
-  // Fetch users from API
-  const fetchUsers = useCallback(async (isRefreshing = false) => {
-    try {
-      if (isRefreshing) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/persons`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data: ApiResponse = await response.json();
-
-      if (data.status === "success" && data.persons) {
-        setProfiles(data.persons);
-      } else {
-        throw new Error(data.message || "Failed to fetch users");
-      }
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load users";
-      setError(errorMessage);
-      console.error("❌ Error fetching users:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  // Initial load
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
   const handleRefresh = () => {
-    fetchUsers(true);
+    refreshProfiles();
   };
 
   const handleRegistrationSuccess = () => {
-    fetchUsers(true);
+    refreshProfiles();
   };
 
   const handleCardPress = (user: Profiles) => {
@@ -141,34 +160,16 @@ export default function UsersScreen() {
             try {
               setDeletingUserId(userId);
 
-              const response = await fetch(
-                `${API_BASE_URL}/persons/${userId}`,
-                {
-                  method: "DELETE",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                },
-              );
+              // Delete from Firestore
+              await deleteDoc(doc(db, "known_persons", userId));
 
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+              // Close modal if the deleted user is currently selected
+              if (selectedUser?.id === userId) {
+                setShowUserDetail(false);
+                setSelectedUser(null);
               }
 
-              const data: ApiResponse = await response.json();
-
-              if (data.status === "success") {
-                // Close modal if the deleted user is currently selected
-                if (selectedUser?.id === userId) {
-                  setShowUserDetail(false);
-                  setSelectedUser(null);
-                }
-                // Refresh the list
-                await fetchUsers(true);
-                Alert.alert("Success", "User deleted successfully");
-              } else {
-                throw new Error(data.message || "Failed to delete user");
-              }
+              Alert.alert("Success", "User deleted successfully");
             } catch (err) {
               const errorMessage =
                 err instanceof Error ? err.message : "Failed to delete user";
@@ -202,57 +203,8 @@ export default function UsersScreen() {
     );
   }
 
-  // Error state
-  if (error && !profiles.length) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: theme.background,
-          padding: 20,
-        }}
-      >
-        <View
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: 40,
-            backgroundColor: theme.error + "20",
-            justifyContent: "center",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <Text style={{ fontSize: 32 }}>⚠️</Text>
-        </View>
-        <Heading size="lg" style={{ color: theme.text, marginBottom: 8 }}>
-          Failed to Load Users
-        </Heading>
-        <Text
-          style={{
-            color: theme.textMuted,
-            textAlign: "center",
-            marginBottom: 24,
-          }}
-        >
-          {error}
-        </Text>
-        <Button
-          size="lg"
-          onPress={handleRefresh}
-          style={{ backgroundColor: theme.accent }}
-        >
-          <ButtonIcon as={RefreshCw} />
-          <ButtonText>Try Again</ButtonText>
-        </Button>
-      </View>
-    );
-  }
-
   return (
-    <>
+    <AdminGuard>
       <ScrollView
         style={{
           flex: 1,
@@ -271,18 +223,13 @@ export default function UsersScreen() {
             </Heading>
             <TouchableOpacity
               onPress={handleRefresh}
-              disabled={refreshing}
               style={{
                 padding: 8,
                 borderRadius: 8,
                 backgroundColor: theme.cardBg,
               }}
             >
-              {refreshing ? (
-                <Spinner size="small" color={theme.accent} />
-              ) : (
-                <RefreshCw size={20} color={theme.accent} />
-              )}
+              <RefreshCw size={20} color={theme.accent} />
             </TouchableOpacity>
           </HStack>
           <Text style={{ color: theme.textSecondary, fontSize: 16 }}>
@@ -341,164 +288,281 @@ export default function UsersScreen() {
               className: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
             }}
           >
-            {profiles.map((user) => (
-              <GridItem
-                key={user.id}
-                _extra={{
-                  className: "col-span-1",
-                }}
-              >
-                <Pressable
-                  onPress={() => handleCardPress(user)}
-                  style={({ pressed }) => ({
-                    transform: [{ scale: pressed ? 0.98 : 1 }],
-                  })}
+            {profiles.map((user) => {
+              const authorizedRooms = getAuthorizedRooms(user, rooms);
+
+              return (
+                <GridItem
+                  key={user.id}
+                  _extra={{
+                    className: "col-span-1",
+                  }}
                 >
-                  <Card
-                    style={{
-                      backgroundColor: theme.cardBg,
-                      borderColor: theme.border,
-                      borderWidth: 2,
-                      borderRadius: 16,
-                      overflow: "hidden",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: isDark ? 0.3 : 0.1,
-                      shadowRadius: 8,
-                      elevation: 4,
-                      opacity: deletingUserId === user.id ? 0.5 : 1,
-                    }}
+                  <Pressable
+                    onPress={() => handleCardPress(user)}
+                    style={({ pressed }) => ({
+                      transform: [{ scale: pressed ? 0.98 : 1 }],
+                    })}
                   >
-                    {/* Image Section with Overlay */}
-                    <View
+                    <Card
                       style={{
-                        borderWidth: 0,
-                        borderColor: "red",
-                        justifyContent: "center",
-                        alignItems: "center",
+                        backgroundColor: theme.cardBg,
+                        borderColor: theme.border,
+                        borderWidth: 2,
+                        borderRadius: 16,
+                        overflow: "hidden",
+                        shadowColor: "#000",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: isDark ? 0.3 : 0.1,
+                        shadowRadius: 8,
+                        elevation: 4,
+                        opacity: deletingUserId === user.id ? 0.5 : 1,
                       }}
                     >
-                      <Image
-                        source={{ uri: user.imageUrl }}
-                        alt={user.name}
-                        size="2xl"
-                      />
-
-                      {/* Gradient Overlay */}
+                      {/* Image Section with Overlay */}
                       <View
                         style={{
-                          position: "absolute",
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          height: 80,
-                          background: isDark
-                            ? "linear-gradient(to top, rgba(0,0,0,0.8), transparent)"
-                            : "linear-gradient(to top, rgba(0,0,0,0.4), transparent)",
+                          borderWidth: 0,
+                          borderColor: "red",
+                          justifyContent: "center",
+                          alignItems: "center",
                         }}
-                      />
+                      >
+                        <Image
+                          source={{ uri: user.imageUrl }}
+                          alt={user.name}
+                          size="2xl"
+                        />
 
-                      {/* Deleting Indicator */}
-                      {deletingUserId === user.id && (
+                        {/* Gradient Overlay */}
                         <View
                           style={{
                             position: "absolute",
-                            top: 0,
+                            bottom: 0,
                             left: 0,
                             right: 0,
-                            bottom: 0,
-                            justifyContent: "center",
-                            alignItems: "center",
-                            backgroundColor: "rgba(0,0,0,0.5)",
+                            height: 80,
+                            background: isDark
+                              ? "linear-gradient(to top, rgba(0,0,0,0.8), transparent)"
+                              : "linear-gradient(to top, rgba(0,0,0,0.4), transparent)",
+                          }}
+                        />
+
+                        {/* Deleting Indicator */}
+                        {deletingUserId === user.id && (
+                          <View
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: "rgba(0,0,0,0.5)",
+                            }}
+                          >
+                            <Spinner size="large" color="#fff" />
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Content Section */}
+                      <View style={{ padding: 16 }}>
+                        {/* Name */}
+                        <Heading
+                          size="lg"
+                          style={{
+                            color: theme.text,
+                            marginBottom: 12,
+                            fontWeight: "600",
                           }}
                         >
-                          <Spinner size="large" color="#fff" />
-                        </View>
-                      )}
-                    </View>
+                          {user.name}
+                        </Heading>
 
-                    {/* Content Section */}
-                    <View style={{ padding: 16 }}>
-                      {/* Name */}
-                      <Heading
-                        size="lg"
-                        style={{
-                          color: theme.text,
-                          marginBottom: 12,
-                          fontWeight: "600",
-                        }}
-                      >
-                        {user.name}
-                      </Heading>
+                        <Divider
+                          style={{
+                            marginBottom: 12,
+                            backgroundColor: theme.border,
+                          }}
+                        />
 
-                      <Divider
-                        style={{
-                          marginBottom: 12,
-                          backgroundColor: theme.border,
-                        }}
-                      />
+                        {/* Contact Info */}
+                        <VStack space="sm">
+                          {/* Email */}
+                          <TouchableOpacity>
+                            <HStack space="sm" style={{ alignItems: "center" }}>
+                              <View
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: theme.accentLight,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Mail size={16} color={theme.accent} />
+                              </View>
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 14,
+                                  flex: 1,
+                                }}
+                                numberOfLines={1}
+                              >
+                                {user.email}
+                              </Text>
+                            </HStack>
+                          </TouchableOpacity>
 
-                      {/* Contact Info */}
-                      <VStack space="sm">
-                        {/* Email */}
-                        <TouchableOpacity>
-                          <HStack space="sm" style={{ alignItems: "center" }}>
-                            <View
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 16,
-                                backgroundColor: theme.accentLight,
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
-                            >
-                              <Mail size={16} color={theme.accent} />
-                            </View>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                                flex: 1,
-                              }}
-                              numberOfLines={1}
-                            >
-                              {user.email}
-                            </Text>
-                          </HStack>
-                        </TouchableOpacity>
+                          {/* Phone */}
+                          <TouchableOpacity>
+                            <HStack space="sm" style={{ alignItems: "center" }}>
+                              <View
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 16,
+                                  backgroundColor: theme.accentLight,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <Phone size={16} color={theme.accent} />
+                              </View>
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 14,
+                                }}
+                              >
+                                {user.phone}
+                              </Text>
+                            </HStack>
+                          </TouchableOpacity>
 
-                        {/* Phone */}
-                        <TouchableOpacity>
-                          <HStack space="sm" style={{ alignItems: "center" }}>
-                            <View
-                              style={{
-                                width: 32,
-                                height: 32,
-                                borderRadius: 16,
-                                backgroundColor: theme.accentLight,
-                                justifyContent: "center",
-                                alignItems: "center",
-                              }}
-                            >
-                              <Phone size={16} color={theme.accent} />
-                            </View>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                              }}
-                            >
-                              {user.phone}
-                            </Text>
-                          </HStack>
-                        </TouchableOpacity>
-                      </VStack>
-                    </View>
-                  </Card>
-                </Pressable>
-              </GridItem>
-            ))}
+                          {/* Authorized Rooms */}
+                          {authorizedRooms.length > 0 && (
+                            <>
+                              <Divider
+                                style={{
+                                  marginVertical: 8,
+                                  backgroundColor: theme.border,
+                                }}
+                              />
+                              <View>
+                                <HStack
+                                  space="sm"
+                                  style={{
+                                    alignItems: "center",
+                                    marginBottom: 8,
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      backgroundColor: theme.successLight,
+                                      justifyContent: "center",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <DoorOpen size={16} color={theme.success} />
+                                  </View>
+                                  <Text
+                                    style={{
+                                      color: theme.text,
+                                      fontSize: 14,
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    Authorized Rooms
+                                  </Text>
+                                </HStack>
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    flexWrap: "wrap",
+                                    gap: 6,
+                                    marginLeft: 40,
+                                  }}
+                                >
+                                  {authorizedRooms.map((roomId, index) => (
+                                    <View
+                                      key={index}
+                                      style={{
+                                        backgroundColor: theme.successLight,
+                                        paddingHorizontal: 10,
+                                        paddingVertical: 4,
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        borderColor: theme.success + "40",
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          color: theme.success,
+                                          fontSize: 12,
+                                          fontWeight: "500",
+                                        }}
+                                      >
+                                        {formatRoomName(roomId)}
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </View>
+                              </View>
+                            </>
+                          )}
+
+                          {/* No Rooms Authorized */}
+                          {authorizedRooms.length === 0 && (
+                            <>
+                              <Divider
+                                style={{
+                                  marginVertical: 8,
+                                  backgroundColor: theme.border,
+                                }}
+                              />
+                              <HStack
+                                space="sm"
+                                style={{ alignItems: "center" }}
+                              >
+                                <View
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: 16,
+                                    backgroundColor: theme.error + "20",
+                                    justifyContent: "center",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <DoorOpen size={16} color={theme.error} />
+                                </View>
+                                <Text
+                                  style={{
+                                    color: theme.textMuted,
+                                    fontSize: 13,
+                                    fontStyle: "italic",
+                                  }}
+                                >
+                                  No room access
+                                </Text>
+                              </HStack>
+                            </>
+                          )}
+                        </VStack>
+                      </View>
+                    </Card>
+                  </Pressable>
+                </GridItem>
+              );
+            })}
           </Grid>
         )}
       </ScrollView>
@@ -534,6 +598,6 @@ export default function UsersScreen() {
         onEdit={handleEditUser}
         onDelete={handleDeleteUser}
       />
-    </>
+    </AdminGuard>
   );
 }

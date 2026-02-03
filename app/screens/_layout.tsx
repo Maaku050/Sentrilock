@@ -1,3 +1,4 @@
+// app/screens/_layout.tsx
 import React, { useState, createContext, useContext } from "react";
 import {
   StyleSheet,
@@ -31,6 +32,9 @@ import { useRouter } from "expo-router";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/firebaseConfig";
 import { UsersProvider } from "@/context/usersContext";
+import { RoomsProvider } from "@/context/roomsContext";
+import { AdminGuard } from "@/components/AdminGuard";
+import { clearAdminSession } from "@/utils/adminAuth";
 
 // Theme Context
 interface ThemeContextType {
@@ -59,13 +63,13 @@ function CustomDrawerContent(props: any) {
           padding: 30,
           alignItems: "center",
           backgroundColor: "#000",
-          paddingTop: 50,
-          paddingBottom: 40,
+          paddingTop: 20,
+          paddingBottom: 30,
         }}
       >
         <Image
-          source={require("@/assets/images/favicon.png")}
-          style={{ width: 120, height: 60 }}
+          source={require("@/assets/images/sksu-logo.png")}
+          style={{ width: 80, height: 80 }}
           resizeMode="contain"
         />
       </View>
@@ -88,6 +92,7 @@ function LogoutButton() {
   const confirmLogout = async () => {
     try {
       await signOut(auth);
+      await clearAdminSession(); // Clear admin session
       setShowLogoutModal(false);
       router.replace("/");
     } catch (error) {
@@ -134,7 +139,7 @@ function LogoutButton() {
   );
 }
 
-export default function RootLayout() {
+function ScreensLayout() {
   const dimensions = useWindowDimensions();
   const [isDark, setIsDark] = useState(true);
 
@@ -158,111 +163,158 @@ export default function RootLayout() {
   return (
     <ThemeContext.Provider value={{ isDark, toggleTheme }}>
       <DashboardProvider>
-        <UsersProvider>
-          <GluestackUIProvider mode="dark">
-            <Drawer
-              drawerContent={(props: any) => <CustomDrawerContent {...props} />}
-              screenOptions={{
-                drawerType: isLargeScreen
-                  ? "permanent"
-                  : isMediumScreen
-                    ? "slide"
-                    : "slide",
-                drawerStyle: isLargeScreen
-                  ? {
-                      width: 200,
-                      backgroundColor: theme.background,
-                      borderRightWidth: 0,
-                    }
-                  : {
-                      width: "70%",
-                      backgroundColor: theme.background,
-                    },
-                headerShown: true,
-                drawerActiveTintColor: theme.drawerActive,
-                drawerInactiveTintColor: theme.drawerInactive,
-                drawerActiveBackgroundColor: theme.drawerActiveBg,
-                drawerInactiveBackgroundColor: "transparent",
-                drawerItemStyle: {
-                  borderRadius: 8,
-                  marginHorizontal: 0,
-                  marginVertical: 4,
-                  paddingLeft: 0,
-                },
-                drawerLabelStyle: {
-                  fontSize: 15,
-                  fontWeight: "600",
-                  marginLeft: -16,
-                },
-                overlayColor: "transparent",
-                sceneStyle: { backgroundColor: "transparent" },
-                headerStyle: {
-                  backgroundColor: theme.headerBg,
-                  borderColor: theme.headerBg,
-                },
-                headerTitleStyle: {
-                  fontWeight: "bold",
-                  fontSize: 24,
-                  color: theme.text,
-                },
-                headerTintColor: theme.text,
-                headerRight: () => <LogoutButton />,
-              }}
-            >
-              <Drawer.Screen
-                name="dashboard"
-                options={{
-                  title: "Dashboard",
-                  drawerIcon: ({ color }) => (
-                    <LayoutDashboard color={color} size={25} className="mr-2" />
-                  ),
-                  headerTitle: () => (
-                    <Heading size="md" style={{ color: "white" }}>
-                      Dashboard
-                    </Heading>
-                  ),
-                  headerLeft: () => (
-                    <>
+        <RoomsProvider>
+          <UsersProvider>
+            <GluestackUIProvider mode="dark">
+              <Drawer
+                drawerContent={(props: any) => (
+                  <CustomDrawerContent {...props} />
+                )}
+                screenOptions={{
+                  drawerType: isLargeScreen
+                    ? "permanent"
+                    : isMediumScreen
+                      ? "slide"
+                      : "slide",
+                  drawerStyle: isLargeScreen
+                    ? {
+                        width: 200,
+                        backgroundColor: theme.background,
+                        borderRightWidth: 0,
+                      }
+                    : {
+                        width: "70%",
+                        backgroundColor: theme.background,
+                      },
+                  headerShown: true,
+                  drawerActiveTintColor: theme.drawerActive,
+                  drawerInactiveTintColor: theme.drawerInactive,
+                  drawerActiveBackgroundColor: theme.drawerActiveBg,
+                  drawerInactiveBackgroundColor: "transparent",
+                  drawerItemStyle: {
+                    borderRadius: 8,
+                    marginHorizontal: 0,
+                    marginVertical: 4,
+                    paddingLeft: 0,
+                  },
+                  drawerLabelStyle: {
+                    fontSize: 15,
+                    fontWeight: "600",
+                    marginLeft: -16,
+                  },
+                  overlayColor: "transparent",
+                  sceneStyle: { backgroundColor: "transparent" },
+                  headerStyle: {
+                    backgroundColor: theme.headerBg,
+                    borderColor: theme.headerBg,
+                  },
+                  headerTitleStyle: {
+                    fontWeight: "bold",
+                    fontSize: 24,
+                    color: theme.text,
+                  },
+                  headerTintColor: theme.text,
+                  headerRight: () => <LogoutButton />,
+                }}
+              >
+                <Drawer.Screen
+                  name="dashboard"
+                  options={{
+                    title: "Dashboard",
+                    drawerIcon: ({ color }) => (
                       <LayoutDashboard
-                        color={"white"}
-                        style={{ marginLeft: 10 }}
+                        color={color}
+                        size={25}
+                        className="mr-2"
                       />
-                    </>
-                  ),
-                  headerStyle: {
-                    ...styles.headerSpace,
-                    backgroundColor: theme.headerBg,
-                  },
-                }}
-              />
-              <Drawer.Screen
-                name="registeredUsers"
-                options={{
-                  title: "Users",
-                  drawerIcon: ({ color }) => (
-                    <UsersRound color={color} size={25} className="mr-2" />
-                  ),
-                  headerTitle: () => (
-                    <Heading size="md" style={{ color: "white" }}>
-                      Users
-                    </Heading>
-                  ),
-                  headerLeft: () => (
-                    <>
-                      <UsersRound color={"white"} style={{ marginLeft: 10 }} />
-                    </>
-                  ),
-                  headerStyle: {
-                    ...styles.headerSpace,
-                    backgroundColor: theme.headerBg,
-                  },
-                }}
-              />
-            </Drawer>
-          </GluestackUIProvider>
-        </UsersProvider>
+                    ),
+                    headerTitle: () => (
+                      <Heading size="md" style={{ color: "white" }}>
+                        Dashboard
+                      </Heading>
+                    ),
+                    headerLeft: () => (
+                      <>
+                        <LayoutDashboard
+                          color={"white"}
+                          style={{ marginLeft: 10 }}
+                        />
+                      </>
+                    ),
+                    headerStyle: {
+                      ...styles.headerSpace,
+                      backgroundColor: theme.headerBg,
+                    },
+                  }}
+                />
+                <Drawer.Screen
+                  name="registeredUsers"
+                  options={{
+                    title: "Users",
+                    drawerIcon: ({ color }) => (
+                      <UsersRound color={color} size={25} className="mr-2" />
+                    ),
+                    headerTitle: () => (
+                      <Heading size="md" style={{ color: "white" }}>
+                        Users
+                      </Heading>
+                    ),
+                    headerLeft: () => (
+                      <>
+                        <UsersRound
+                          color={"white"}
+                          style={{ marginLeft: 10 }}
+                        />
+                      </>
+                    ),
+                    headerStyle: {
+                      ...styles.headerSpace,
+                      backgroundColor: theme.headerBg,
+                    },
+                  }}
+                />
+                <Drawer.Screen
+                  name="bulkDeleteLogs"
+                  options={{
+                    title: "Delete",
+                    drawerItemStyle: { display: "none" },
+                    drawerIcon: ({ color }) => (
+                      <UsersRound color={color} size={25} className="mr-2" />
+                    ),
+                    headerTitle: () => (
+                      <Heading size="md" style={{ color: "white" }}>
+                        Users
+                      </Heading>
+                    ),
+                    headerLeft: () => (
+                      <>
+                        <UsersRound
+                          color={"white"}
+                          style={{ marginLeft: 10 }}
+                        />
+                      </>
+                    ),
+                    headerStyle: {
+                      ...styles.headerSpace,
+                      backgroundColor: theme.headerBg,
+                    },
+                  }}
+                />
+              </Drawer>
+            </GluestackUIProvider>
+          </UsersProvider>
+        </RoomsProvider>
       </DashboardProvider>
     </ThemeContext.Provider>
+  );
+}
+
+// Wrap the entire layout with AdminGuard
+export default function RootLayout() {
+  return (
+    <AdminGuard>
+      <ScreensLayout />
+    </AdminGuard>
   );
 }
 

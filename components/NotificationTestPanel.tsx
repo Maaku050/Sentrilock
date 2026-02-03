@@ -1,6 +1,4 @@
 // components/NotificationTestPanel.tsx
-// Add this component to your dashboard for testing notifications
-
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Bell, Send } from "lucide-react-native";
@@ -8,7 +6,8 @@ import {
   getNotificationPermissionStatus,
   requestNotificationPermission,
   showTestNotification,
-} from "@/utils/notifications"; 
+} from "@/utils/notifications";
+import { sendCloudTestNotification } from "@/utils/notifications";
 
 interface NotificationTestPanelProps {
   isDark?: boolean;
@@ -41,7 +40,10 @@ export function NotificationTestPanel({
   const handleTestNotification = async () => {
     setTesting(true);
     try {
-      await showTestNotification();
+      const success = await sendCloudTestNotification();
+      if (success) {
+        alert("Test notification sent via Cloud Function!");
+      }
       setTimeout(() => setTesting(false), 1000);
     } catch (error) {
       console.error("Test notification error:", error);

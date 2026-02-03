@@ -24,3 +24,40 @@ messaging.onBackgroundMessage((payload) => {
     icon: "/icon.png",
   });
 });
+
+messaging.onBackgroundMessage((payload) => {
+  const notificationTitle = payload.notification.title;
+  const notificationOptions = {
+    body: payload.notification.body,
+    icon: "/icon.png",
+    badge: "/icon.png",
+    data: payload.data, // ✅ Pass data through
+  };
+
+  self.registration.showNotification(notificationTitle, notificationOptions);
+});
+
+// ✅ ADD THIS - Handle notification clicks
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || "/dashboard";
+
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUnclassified: true })
+      .then((windowClients) => {
+        // Check if dashboard is already open
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (client.url.includes(urlToOpen) && "focus" in client) {
+            return client.focus();
+          }
+        }
+        // Open new window
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      }),
+  );
+});

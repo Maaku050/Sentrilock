@@ -1,4 +1,4 @@
-// components/NotificationHandler.js
+// components/NotificationHandler.tsx
 import { useEffect, useState } from "react";
 import {
   View,
@@ -12,7 +12,7 @@ import {
   onMessageListener,
   saveFCMToken,
 } from "@/utils/notifications";
-import { auth } from "@/firebase/firebaseConfig";
+import { getAdminUserId } from "@/utils/adminAuth"; // ✅ ADD THIS IMPORT
 
 export default function NotificationHandler() {
   const [notification, setNotification] = useState(null);
@@ -46,8 +46,9 @@ export default function NotificationHandler() {
   const setupNotifications = async () => {
     const token = await requestNotificationPermission();
 
-    if (token && auth.currentUser) {
-      await saveFCMToken(auth.currentUser.uid, token);
+    const adminId = getAdminUserId();
+    if (token && adminId) {
+      await saveFCMToken(adminId, token);
     }
   };
 

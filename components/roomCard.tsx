@@ -46,8 +46,6 @@ export function RoomCard({ room, isDark }: { room: RoomUI; isDark: boolean }) {
   };
 
   const handleUnlock = async () => {
-    if (occupied) return;
-
     setIsUnlocking(true);
     setUnlockStatus("unlocking");
 
@@ -176,13 +174,13 @@ export function RoomCard({ room, isDark }: { room: RoomUI; isDark: boolean }) {
 
       {/* Action */}
       <TouchableOpacity
-        disabled={occupied || isUnlocking}
+        disabled={isUnlocking}
         onPress={handleUnlock}
         style={[
           styles.button,
           {
             backgroundColor: getButtonColor(),
-            opacity: occupied ? 0.4 : 1,
+            opacity: 1,
           },
         ]}
       >

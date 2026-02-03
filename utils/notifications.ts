@@ -10,10 +10,13 @@ import {
   updateDoc,
   arrayUnion,
 } from "firebase/firestore";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { getAdminUserId } from "./adminAuth";
 
 // Replace with your actual VAPID key from Firebase Console
 // Go to: Project Settings → Cloud Messaging → Web Push certificates
-const VAPID_KEY = "YOUR_VAPID_PUBLIC_KEY_HERE";
+const VAPID_KEY =
+  "BI-2Y9V4Bwnz_kUYAC3PVMYlTSBX6DkE3_i5dzUqCKjk7m1YOvtNGDnWFbNuzWjMGrYeeiHZto4At5Xr9cmWEtI";
 
 // Storage key for local token cache
 const TOKEN_STORAGE_KEY = "sentrilock_fcm_token";
@@ -150,7 +153,12 @@ export const requestNotificationPermission = async (): Promise<
 
         if (token) {
           console.log("FCM Token obtained:", token.substring(0, 20) + "...");
-          cacheToken(token);
+          // ✅ Save to admin user document
+          const adminId = getAdminUserId();
+          if (adminId) {
+            await saveFCMToken(adminId, token);
+          }
+
           return token;
         } else {
           console.error("No registration token available");
@@ -585,5 +593,21 @@ export const logNotificationInteraction = async (
     });
   } catch (error) {
     console.error("Error logging notification interaction:", error);
+  }
+};
+
+export const sendCloudTestNotification = async (): Promise<boolean> => {
+  try {
+    const functions = getFunctions();
+    const testNotification = httpsCallable(functions, "sendTestNotification");
+
+    const adminId = getAdminUserId(); // ✅ Pass admin ID
+    const result = await testNotification({ userId: adminId });
+
+    console.log("Test notification sent:", result.data);
+    return true;
+  } catch (error) {
+    console.error("Error calling test notification:", error);
+    return false;
   }
 };

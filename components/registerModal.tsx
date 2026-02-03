@@ -1,3 +1,4 @@
+// components/registerModal.tsx
 import {
   Modal,
   ModalBackdrop,
@@ -11,7 +12,7 @@ import { Button, ButtonText } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
 import { Icon, CloseIcon } from "@/components/ui/icon";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FormControl,
   FormControlLabel,
@@ -23,16 +24,31 @@ import {
   FormControlLabelText,
 } from "@/components/ui/form-control";
 import { AlertCircleIcon } from "@/components/ui/icon";
-import { Input, InputField, InputIcon, InputSlot } from "@/components/ui/input";
+import { Input, InputField } from "@/components/ui/input";
 import { ButtonSpinner } from "@/components/ui/button";
 import { VStack } from "@/components/ui/vstack";
+import { HStack } from "@/components/ui/hstack";
 import { Alert, AlertText } from "@/components/ui/alert";
 import { useTheme } from "../app/screens/_layout";
+import {
+  Checkbox,
+  CheckboxIndicator,
+  CheckboxIcon,
+  CheckboxLabel,
+} from "@/components/ui/checkbox";
+import { CheckIcon } from "@/components/ui/icon";
+import { db } from "@/firebase/firebaseConfig";
+import { collection, getDocs } from "firebase/firestore";
 
 interface ModalTypes {
   visible: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+}
+
+interface Room {
+  id: string;
+  name: string;
 }
 
 export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
@@ -43,11 +59,14 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
 
   // Validation states
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [imageError, setImageError] = useState("");
+  const [roomError, setRoomError] = useState("");
 
   const { isDark } = useTheme();
 
@@ -58,20 +77,39 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
     textMuted: isDark ? "#888" : "#666",
     border: isDark ? "#333" : "#e0e0e0",
     inputBg: isDark ? "#0a0a0a" : "#f9fafb",
+    cardBg: isDark ? "#0f0f0f" : "#f3f4f6",
   };
+
+  // Fetch rooms on mount
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const roomsSnapshot = await getDocs(collection(db, "rooms"));
+        const roomsData = roomsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          name: doc.data().name || doc.id,
+        }));
+        setRooms(roomsData);
+      } catch (error) {
+        console.error("Error fetching rooms:", error);
+      }
+    };
+
+    if (visible) {
+      fetchRooms();
+    }
+  }, [visible]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setImageError("");
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
 
-      // Validate file type
       if (!file.type.startsWith("image/")) {
         setImageError("Please select a valid image file");
         return;
       }
 
-      // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         setImageError("Image must be less than 10MB");
         return;
@@ -81,30 +119,43 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
     }
   };
 
+  const toggleRoom = (roomId: string) => {
+    setRoomError("");
+    const newSelected = new Set(selectedRooms);
+    if (newSelected.has(roomId)) {
+      newSelected.delete(roomId);
+    } else {
+      newSelected.add(roomId);
+    }
+    setSelectedRooms(newSelected);
+  };
+
   const validateForm = (): boolean => {
     let isValid = true;
 
-    // Reset errors
     setNameError("");
     setEmailError("");
     setImageError("");
+    setRoomError("");
     setError("");
 
-    // Validate name
     if (!name.trim()) {
       setNameError("Name is required");
       isValid = false;
     }
 
-    // Validate email (optional but must be valid if provided)
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError("Please enter a valid email address");
       isValid = false;
     }
 
-    // Validate image
     if (!imageFile) {
       setImageError("Profile image is required");
+      isValid = false;
+    }
+
+    if (selectedRooms.size === 0) {
+      setRoomError("Please select at least one room");
       isValid = false;
     }
 
@@ -121,17 +172,19 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
     setSuccess("");
 
     try {
-      // Convert image file to ArrayBuffer
       const arrayBuffer = await imageFile!.arrayBuffer();
       const imageBuffer = new Uint8Array(arrayBuffer);
 
-      // Build query parameters
       const params = new URLSearchParams();
       params.append("name", name.trim());
       if (email.trim()) params.append("email", email.trim());
       if (contact.trim()) params.append("phone", contact.trim());
 
-      // Send request
+      // Add room permissions
+      selectedRooms.forEach((roomId) => {
+        params.append(roomId, "true");
+      });
+
       const response = await fetch(
         `https://esp32cam-b5bx42kifq-uc.a.run.app/register?${params.toString()}`,
         {
@@ -148,12 +201,12 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
       if (response.ok && data.status === "success") {
         setSuccess(`Successfully registered ${name}!`);
 
-        // Clear form
         setTimeout(() => {
           setName("");
           setEmail("");
           setContact("");
           setImageFile(null);
+          setSelectedRooms(new Set());
           setSuccess("");
           onSuccess?.();
           onClose();
@@ -179,11 +232,13 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
       setEmail("");
       setContact("");
       setImageFile(null);
+      setSelectedRooms(new Set());
       setError("");
       setSuccess("");
       setNameError("");
       setEmailError("");
       setImageError("");
+      setRoomError("");
       onClose();
     }
   };
@@ -203,14 +258,12 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
 
         <ModalBody>
           <VStack space="md">
-            {/* Error Alert */}
             {error && (
               <Alert action="error" variant="solid">
                 <AlertText>{error}</AlertText>
               </Alert>
             )}
 
-            {/* Success Alert */}
             {success && (
               <Alert action="success" variant="solid">
                 <AlertText>{success}</AlertText>
@@ -357,6 +410,68 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
               <FormControlHelper>
                 <FormControlHelperText style={{ color: theme.textMuted }}>
                   Upload a clear photo showing your face. Max 10MB.
+                </FormControlHelperText>
+              </FormControlHelper>
+            </FormControl>
+
+            {/* Room Permissions */}
+            <FormControl size="md" isInvalid={!!roomError} isRequired>
+              <FormControlLabel>
+                <FormControlLabelText style={{ color: theme.text }}>
+                  Room Access Permissions
+                </FormControlLabelText>
+              </FormControlLabel>
+
+              <VStack
+                space="sm"
+                style={{
+                  backgroundColor: theme.cardBg,
+                  padding: 12,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                {rooms.length === 0 ? (
+                  <Text
+                    style={{
+                      color: theme.textMuted,
+                      textAlign: "center",
+                      paddingVertical: 8,
+                    }}
+                  >
+                    No rooms available
+                  </Text>
+                ) : (
+                  rooms.map((room) => (
+                    <Checkbox
+                      key={room.id}
+                      value={room.id}
+                      isChecked={selectedRooms.has(room.id)}
+                      onChange={() => toggleRoom(room.id)}
+                      size="md"
+                    >
+                      <CheckboxIndicator>
+                        <CheckboxIcon as={CheckIcon} />
+                      </CheckboxIndicator>
+                      <CheckboxLabel style={{ color: theme.text }}>
+                        {room.name}
+                      </CheckboxLabel>
+                    </Checkbox>
+                  ))
+                )}
+              </VStack>
+
+              {roomError && (
+                <FormControlError>
+                  <FormControlErrorIcon as={AlertCircleIcon} />
+                  <FormControlErrorText>{roomError}</FormControlErrorText>
+                </FormControlError>
+              )}
+
+              <FormControlHelper>
+                <FormControlHelperText style={{ color: theme.textMuted }}>
+                  Select which rooms this person can access
                 </FormControlHelperText>
               </FormControlHelper>
             </FormControl>

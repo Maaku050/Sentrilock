@@ -118,7 +118,7 @@ async function sendSecurityAlert(
       attemptIds: attempts.map((a) => a.id).join(","),
     },
     webpush: {
-      fcmOptions: { link: "/dashboard" },
+      fcmOptions: { link: "/" },
     },
   });
 
@@ -251,11 +251,13 @@ async function updateNotificationStats(
  * CALLABLE FUNCTION (V2)
  * ========================================================================== */
 export const sendTestNotification = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be authenticated");
+  // ✅ Accept userId from request data for admin users
+  const userId = request.data?.userId || request.auth?.uid;
+
+  if (!userId) {
+    throw new HttpsError("unauthenticated", "User ID required");
   }
 
-  const userId = request.auth.uid;
   const userDoc = await db.collection("users").doc(userId).get();
   const token = userDoc.data()?.fcmTokens?.web;
 
@@ -270,7 +272,7 @@ export const sendTestNotification = onCall(async (request) => {
       body: "This is a test notification from your security system",
     },
     webpush: {
-      fcmOptions: { link: "/dashboard" },
+      fcmOptions: { link: "/" },
     },
   });
 
