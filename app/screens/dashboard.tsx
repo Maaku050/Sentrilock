@@ -27,7 +27,6 @@ import { Input, InputField } from "@/components/ui/input";
 import NotificationHandler from "@/components/NotificationHandler";
 import { SecurityAlertBanner } from "@/components/SecurityAlertBanner";
 import * as Print from "expo-print";
-import { AdminGuard } from "@/components/AdminGuard";
 
 export type FilterOptions = {
   dateRange: {

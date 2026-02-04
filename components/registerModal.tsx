@@ -1,4 +1,4 @@
-// components/registerModal.tsx
+// components/registerModal.tsx - WITH TIME-BASED ACCESS CONTROL
 import {
   Modal,
   ModalBackdrop,
@@ -39,6 +39,7 @@ import {
 import { CheckIcon } from "@/components/ui/icon";
 import { db } from "@/firebase/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
+import { Clock } from "lucide-react-native";
 
 interface ModalTypes {
   visible: boolean;
@@ -61,12 +62,15 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
   const [success, setSuccess] = useState("");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
 
   // Validation states
   const [nameError, setNameError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [imageError, setImageError] = useState("");
   const [roomError, setRoomError] = useState("");
+  const [timeError, setTimeError] = useState("");
 
   const { isDark } = useTheme();
 
@@ -78,6 +82,7 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
     border: isDark ? "#333" : "#e0e0e0",
     inputBg: isDark ? "#0a0a0a" : "#f9fafb",
     cardBg: isDark ? "#0f0f0f" : "#f3f4f6",
+    warning: isDark ? "#f59e0b" : "#d97706",
   };
 
   // Fetch rooms on mount
@@ -137,6 +142,7 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
     setEmailError("");
     setImageError("");
     setRoomError("");
+    setTimeError("");
     setError("");
 
     if (!name.trim()) {
@@ -156,6 +162,27 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
 
     if (selectedRooms.size === 0) {
       setRoomError("Please select at least one room");
+      isValid = false;
+    }
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+    if (startTime && !timeRegex.test(startTime)) {
+      setTimeError("Invalid start time format (use HH:MM)");
+      isValid = false;
+    }
+
+    if (endTime && !timeRegex.test(endTime)) {
+      setTimeError("Invalid end time format (use HH:MM)");
+      isValid = false;
+    }
+
+    // Both or neither should be set
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+      setTimeError(
+        "Both start and end times must be set, or leave both empty for 24/7 access",
+      );
       isValid = false;
     }
 
@@ -179,6 +206,12 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
       params.append("name", name.trim());
       if (email.trim()) params.append("email", email.trim());
       if (contact.trim()) params.append("phone", contact.trim());
+
+      // Add time-based access if specified
+      if (startTime && endTime) {
+        params.append("startTime", startTime);
+        params.append("endTime", endTime);
+      }
 
       // Add room permissions
       selectedRooms.forEach((roomId) => {
@@ -207,6 +240,8 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
           setContact("");
           setImageFile(null);
           setSelectedRooms(new Set());
+          setStartTime("");
+          setEndTime("");
           setSuccess("");
           onSuccess?.();
           onClose();
@@ -233,12 +268,15 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
       setContact("");
       setImageFile(null);
       setSelectedRooms(new Set());
+      setStartTime("");
+      setEndTime("");
       setError("");
       setSuccess("");
       setNameError("");
       setEmailError("");
       setImageError("");
       setRoomError("");
+      setTimeError("");
       onClose();
     }
   };
@@ -364,6 +402,79 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
                   placeholderTextColor={theme.textMuted}
                 />
               </Input>
+            </FormControl>
+
+            {/* Time-Based Access Control */}
+            <FormControl size="md" isInvalid={!!timeError}>
+              <FormControlLabel>
+                <HStack space="xs" style={{ alignItems: "center" }}>
+                  <Clock size={14} color={theme.warning} />
+                  <FormControlLabelText style={{ color: theme.text }}>
+                    Access Hours (Optional)
+                  </FormControlLabelText>
+                </HStack>
+              </FormControlLabel>
+
+              <HStack space="md" style={{ alignItems: "flex-start" }}>
+                {/* Start Time */}
+                <Input
+                  className="my-1"
+                  size="md"
+                  style={{
+                    flex: 1,
+                    backgroundColor: theme.inputBg,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <InputField
+                    type="text"
+                    placeholder="Start (00:00)"
+                    value={startTime}
+                    onChangeText={(text) => {
+                      setStartTime(text);
+                      setTimeError("");
+                    }}
+                    style={{ color: theme.text }}
+                    placeholderTextColor={theme.textMuted}
+                  />
+                </Input>
+
+                {/* End Time */}
+                <Input
+                  className="my-1"
+                  size="md"
+                  style={{
+                    flex: 1,
+                    backgroundColor: theme.inputBg,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <InputField
+                    type="text"
+                    placeholder="End (23:59)"
+                    value={endTime}
+                    onChangeText={(text) => {
+                      setEndTime(text);
+                      setTimeError("");
+                    }}
+                    style={{ color: theme.text }}
+                    placeholderTextColor={theme.textMuted}
+                  />
+                </Input>
+              </HStack>
+
+              {timeError && (
+                <FormControlError>
+                  <FormControlErrorIcon as={AlertCircleIcon} />
+                  <FormControlErrorText>{timeError}</FormControlErrorText>
+                </FormControlError>
+              )}
+
+              <FormControlHelper>
+                <FormControlHelperText style={{ color: theme.textMuted }}>
+                  Use 24-hour format (HH:MM). Leave empty for 24/7 access.
+                </FormControlHelperText>
+              </FormControlHelper>
             </FormControl>
 
             {/* Image Input Field */}

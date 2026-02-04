@@ -1,4 +1,4 @@
-// components/userDetailModal.tsx - FIXED VERSION
+// components/userDetailModal.tsx - WITH TIME-BASED ACCESS CONTROL
 import {
   Modal,
   ModalBackdrop,
@@ -87,6 +87,8 @@ export function UserDetailModal({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRooms, setSelectedRooms] = useState<Set<string>>(new Set());
@@ -121,6 +123,8 @@ export function UserDetailModal({
     successLight: isDark ? "#064e3b" : "#d1fae5",
     danger: isDark ? "#ef4444" : "#dc2626",
     dangerLight: isDark ? "#7f1d1d" : "#fee2e2",
+    warning: isDark ? "#f59e0b" : "#d97706",
+    warningLight: isDark ? "#78350f" : "#fef3c7",
   };
 
   // Fetch fresh user data from Firestore
@@ -179,6 +183,8 @@ export function UserDetailModal({
       setEmail(currentUser.email);
       setPhone(currentUser.phone);
       setImageUri(currentUser.imageUrl || null);
+      setStartTime(currentUser.startTime || "");
+      setEndTime(currentUser.endTime || "");
 
       // Initialize room permissions
       const userRooms = new Set<string>();
@@ -208,6 +214,23 @@ export function UserDetailModal({
     if (!phone.trim()) newErrors.phone = "Phone number is required";
     else if (!/^(\+63|0)?9\d{9}$/.test(phone))
       newErrors.phone = "Invalid phone number format";
+
+    // Validate time format (HH:MM)
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+    if (startTime && !timeRegex.test(startTime)) {
+      newErrors.startTime = "Invalid time format (use HH:MM)";
+    }
+
+    if (endTime && !timeRegex.test(endTime)) {
+      newErrors.endTime = "Invalid time format (use HH:MM)";
+    }
+
+    // Both or neither should be set
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+      newErrors.time =
+        "Both start and end times must be set, or leave both empty for 24/7 access";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -277,14 +300,26 @@ export function UserDetailModal({
       });
 
       const userRef = doc(db, "known_persons", user.id);
-      await updateDoc(userRef, {
+      const updateData: any = {
         name,
         email,
         phone,
         imageUrl,
         ...roomPermissions,
         updatedAt: new Date(),
-      });
+      };
+
+      // Add time-based access fields (or remove them if empty)
+      if (startTime && endTime) {
+        updateData.startTime = startTime;
+        updateData.endTime = endTime;
+      } else {
+        // Remove time restrictions if both are empty
+        updateData.startTime = null;
+        updateData.endTime = null;
+      }
+
+      await updateDoc(userRef, updateData);
 
       // Refresh user data
       const updatedDoc = await getDoc(userRef);
@@ -297,6 +332,8 @@ export function UserDetailModal({
           email: data.email,
           phone: data.phone,
           imageUrl: data.imageUrl,
+          startTime: data.startTime,
+          endTime: data.endTime,
           registeredDate: toDate(data.registeredDate),
           updatedAt: toDate(data.updatedAt),
           ...data,
@@ -306,7 +343,16 @@ export function UserDetailModal({
       handleReset();
 
       if (onEdit) {
-        onEdit({ ...user, name, email, phone, imageUrl, ...roomPermissions });
+        onEdit({
+          ...user,
+          name,
+          email,
+          phone,
+          imageUrl,
+          startTime,
+          endTime,
+          ...roomPermissions,
+        });
       }
 
       Alert.alert("Success", "User updated successfully");
@@ -350,6 +396,8 @@ export function UserDetailModal({
       setEmail(currentUser.email);
       setPhone(currentUser.phone);
       setImageUri(currentUser.imageUrl || null);
+      setStartTime(currentUser.startTime || "");
+      setEndTime(currentUser.endTime || "");
 
       const userRooms = new Set<string>();
       rooms.forEach((room) => {
@@ -655,7 +703,196 @@ export function UserDetailModal({
                   )}
                 </VStack>
 
-                {/* IMPROVED Room Permissions Section - EDITING MODE */}
+                {/* TIME-BASED ACCESS CONTROL */}
+                <Divider style={{ backgroundColor: theme.border }} />
+
+                {/* View Mode - Time Display */}
+                {!isEditing && (
+                  <VStack space="md">
+                    <HStack space="sm" style={{ alignItems: "center" }}>
+                      <Clock size={16} color={theme.warning} />
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 14,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Access Hours
+                      </Text>
+                    </HStack>
+
+                    <View
+                      style={{
+                        backgroundColor:
+                          displayUser.startTime && displayUser.endTime
+                            ? theme.warningLight
+                            : theme.successLight,
+                        padding: 12,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor:
+                          displayUser.startTime && displayUser.endTime
+                            ? theme.warning
+                            : theme.success,
+                      }}
+                    >
+                      {displayUser.startTime && displayUser.endTime ? (
+                        <VStack space="xs">
+                          <Text
+                            style={{
+                              color: theme.warning,
+                              fontSize: 13,
+                              fontWeight: "600",
+                            }}
+                          >
+                            🕒 Time-Restricted Access
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.text,
+                              fontSize: 14,
+                            }}
+                          >
+                            {displayUser.startTime} - {displayUser.endTime}
+                          </Text>
+                        </VStack>
+                      ) : (
+                        <VStack space="xs">
+                          <Text
+                            style={{
+                              color: theme.success,
+                              fontSize: 13,
+                              fontWeight: "600",
+                            }}
+                          >
+                            ✓ 24/7 Access
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textMuted,
+                              fontSize: 12,
+                            }}
+                          >
+                            No time restrictions
+                          </Text>
+                        </VStack>
+                      )}
+                    </View>
+                  </VStack>
+                )}
+
+                {/* Edit Mode - Time Inputs */}
+                {isEditing && (
+                  <VStack space="md">
+                    <HStack space="sm" style={{ alignItems: "center" }}>
+                      <Clock size={16} color={theme.warning} />
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 14,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Access Hours (Optional)
+                      </Text>
+                    </HStack>
+
+                    <HStack space="md" style={{ alignItems: "flex-start" }}>
+                      {/* Start Time */}
+                      <FormControl
+                        style={{ flex: 1 }}
+                        isInvalid={!!errors.startTime || !!errors.time}
+                      >
+                        <FormControlLabel>
+                          <Text
+                            style={{ color: theme.textMuted, fontSize: 12 }}
+                          >
+                            Start Time
+                          </Text>
+                        </FormControlLabel>
+                        <Input>
+                          <InputField
+                            value={startTime}
+                            onChangeText={(v) => {
+                              setStartTime(v);
+                              setErrors((e) => ({
+                                ...e,
+                                startTime: "",
+                                time: "",
+                              }));
+                            }}
+                            placeholder="00:00"
+                            style={{ color: theme.text }}
+                          />
+                        </Input>
+                        {errors.startTime && (
+                          <FormControlError>
+                            <Text style={{ color: "#ef4444", fontSize: 11 }}>
+                              {errors.startTime}
+                            </Text>
+                          </FormControlError>
+                        )}
+                      </FormControl>
+
+                      {/* End Time */}
+                      <FormControl
+                        style={{ flex: 1 }}
+                        isInvalid={!!errors.endTime || !!errors.time}
+                      >
+                        <FormControlLabel>
+                          <Text
+                            style={{ color: theme.textMuted, fontSize: 12 }}
+                          >
+                            End Time
+                          </Text>
+                        </FormControlLabel>
+                        <Input>
+                          <InputField
+                            value={endTime}
+                            onChangeText={(v) => {
+                              setEndTime(v);
+                              setErrors((e) => ({
+                                ...e,
+                                endTime: "",
+                                time: "",
+                              }));
+                            }}
+                            placeholder="23:59"
+                            style={{ color: theme.text }}
+                          />
+                        </Input>
+                        {errors.endTime && (
+                          <FormControlError>
+                            <Text style={{ color: "#ef4444", fontSize: 11 }}>
+                              {errors.endTime}
+                            </Text>
+                          </FormControlError>
+                        )}
+                      </FormControl>
+                    </HStack>
+
+                    {errors.time && (
+                      <Text style={{ color: "#ef4444", fontSize: 11 }}>
+                        {errors.time}
+                      </Text>
+                    )}
+
+                    <Text
+                      style={{
+                        color: theme.textMuted,
+                        fontSize: 11,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      💡 Use 24-hour format (HH:MM). Leave both empty for 24/7
+                      access.
+                      {"\n"}Example: 08:00 - 18:00 for 8 AM to 6 PM access.
+                    </Text>
+                  </VStack>
+                )}
+
+                {/* Room Permissions Section - EDITING MODE */}
                 {isEditing && (
                   <>
                     <Divider style={{ backgroundColor: theme.border }} />
@@ -749,7 +986,7 @@ export function UserDetailModal({
                   </>
                 )}
 
-                {/* IMPROVED Room Permissions Section - VIEW MODE */}
+                {/* Room Permissions Section - VIEW MODE */}
                 {!isEditing && rooms.length > 0 && (
                   <>
                     <Divider style={{ backgroundColor: theme.border }} />

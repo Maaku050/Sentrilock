@@ -1,15 +1,34 @@
 import { Timestamp } from "firebase/firestore";
 
 export interface Profiles {
+  /** Firestore document ID */
   id: string;
+
+  /** Basic identity */
   name: string;
   email: string;
   phone: string;
   imageUrl: string;
+
+  /** Registration metadata */
   registeredDate: Date;
   updatedAt?: Date;
-  // Index signature to allow dynamic room permission keys
-  [key: string]: string | Date | boolean | undefined;
+
+  /** Time-based access control (HH:MM, 24-hour format) */
+  startTime?: string | null;
+  endTime?: string | null;
+
+  /**
+   * Dynamic room permissions.
+   * Each room ID maps to a boolean indicating access.
+   *
+   * Example:
+   * {
+   *   "roomA": true,
+   *   "roomB": false
+   * }
+   */
+  [roomId: string]: string | boolean | Date | Timestamp | null | undefined;
 }
 
 export type Rooms = {

@@ -1,3 +1,4 @@
+// components/roomCard.tsx
 import {
   Image,
   TouchableOpacity,
@@ -6,8 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useState } from "react";
-import { MapPin, User } from "lucide-react-native";
+import { useState, useEffect } from "react";
+import { User } from "lucide-react-native";
 
 type RoomUI = {
   id: string;
@@ -45,6 +46,11 @@ export function RoomCard({ room, isDark }: { room: RoomUI; isDark: boolean }) {
     warning: "#f59e0b",
   };
 
+  /**
+   * OPTIMIZED: Web control now uses Firebase RTDB
+   * Backend writes to both Firestore (for logging) and RTDB (for instant ESP32 notification)
+   * No polling needed - ESP32 gets instant notification via Firebase stream
+   */
   const handleUnlock = async () => {
     setIsUnlocking(true);
     setUnlockStatus("unlocking");
@@ -58,22 +64,24 @@ export function RoomCard({ room, isDark }: { room: RoomUI; isDark: boolean }) {
 
       const data = await response.json();
 
-      setUnlockStatus(
-        response.ok && data.status === "success" ? "success" : "error",
-      );
-      console.log(
-        "Message: ",
-        data.message,
-        "Room Id: ",
-        data.roomId,
-        "Unluck: ",
-        data.unlock,
-      );
-    } catch {
+      if (response.ok && data.status === "success") {
+        setUnlockStatus("success");
+        console.log("✓ Unlock command sent via RTDB");
+        console.log("  Room:", room.id);
+        console.log("  ESP32 will receive instant notification");
+      } else {
+        setUnlockStatus("error");
+        console.log("✗ Unlock failed:", data.message);
+      }
+    } catch (error) {
       setUnlockStatus("error");
+      console.log("✗ Network error:", error);
     } finally {
-      setTimeout(() => setUnlockStatus("idle"), 3000);
-      setIsUnlocking(false);
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setUnlockStatus("idle");
+        setIsUnlocking(false);
+      }, 3000);
     }
   };
 
@@ -180,7 +188,7 @@ export function RoomCard({ room, isDark }: { room: RoomUI; isDark: boolean }) {
           styles.button,
           {
             backgroundColor: getButtonColor(),
-            opacity: 1,
+            opacity: isUnlocking ? 0.7 : 1,
           },
         ]}
       >
