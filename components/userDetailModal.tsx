@@ -476,7 +476,7 @@ export function UserDetailModal({
               {isEditing ? "Edit User" : "User Details"}
             </Heading>
             <ModalCloseButton>
-              <Icon as={CloseIcon} style={{ color: theme.text }} />
+              <Icon as={CloseIcon} color="white" />
             </ModalCloseButton>
           </ModalHeader>
 

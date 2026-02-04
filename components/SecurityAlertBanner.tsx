@@ -62,7 +62,7 @@ export function SecurityAlertBanner({
             duration: 600,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
 
       // Glow animation
@@ -78,7 +78,7 @@ export function SecurityAlertBanner({
             duration: 1500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       );
 
       pulseAnimation.start();
@@ -113,10 +113,10 @@ export function SecurityAlertBanner({
   }
 
   const attemptTimes = lastDetection.attempts.map((a) =>
-    a.timestamp.toDate().toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    })
+    a.timestamp.toDate().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
   );
 
   const glowOpacity = glowAnim.interpolate({
@@ -194,16 +194,20 @@ export function SecurityAlertBanner({
             {/* Details Grid */}
             <View style={styles.detailsGrid}>
               <View style={styles.detailItem}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                <Text
+                  style={[styles.detailLabel, { color: theme.textSecondary }]}
+                >
                   Location
                 </Text>
                 <Text style={[styles.detailValue, { color: theme.text }]}>
                   {lastDetection.roomId}
                 </Text>
               </View>
-              
+
               <View style={styles.detailItem}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                <Text
+                  style={[styles.detailLabel, { color: theme.textSecondary }]}
+                >
                   Attempts
                 </Text>
                 <Text style={[styles.detailValue, { color: theme.danger }]}>
@@ -212,13 +216,15 @@ export function SecurityAlertBanner({
               </View>
 
               <View style={styles.detailItem}>
-                <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+                <Text
+                  style={[styles.detailLabel, { color: theme.textSecondary }]}
+                >
                   Last Attempt
                 </Text>
                 <Text style={[styles.detailValue, { color: theme.text }]}>
-                  {lastDetection.timestamp.toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                  {lastDetection.timestamp.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
                   })}
                 </Text>
               </View>
@@ -226,14 +232,20 @@ export function SecurityAlertBanner({
 
             {/* Timeline */}
             <View style={styles.timeline}>
-              <Text style={[styles.timelineLabel, { color: theme.textSecondary }]}>
+              <Text
+                style={[styles.timelineLabel, { color: theme.textSecondary }]}
+              >
                 Attempt Timeline
               </Text>
               <View style={styles.timelineDots}>
                 {attemptTimes.map((time, index) => (
                   <View key={index} style={styles.timelineItem}>
-                    <View style={[styles.dot, { backgroundColor: theme.danger }]} />
-                    <Text style={[styles.timeText, { color: theme.textSecondary }]}>
+                    <View
+                      style={[styles.dot, { backgroundColor: theme.danger }]}
+                    />
+                    <Text
+                      style={[styles.timeText, { color: theme.textSecondary }]}
+                    >
                       {time}
                     </Text>
                   </View>
@@ -253,8 +265,11 @@ export function SecurityAlertBanner({
               <Text style={styles.viewButtonText}>View Details</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.closeButton, { backgroundColor: theme.background }]} 
+            <TouchableOpacity
+              style={[
+                styles.closeButton,
+                { backgroundColor: theme.background },
+              ]}
               onPress={handleDismiss}
               activeOpacity={0.7}
             >
@@ -287,6 +302,9 @@ const styles = StyleSheet.create({
     zIndex: 9998,
     paddingHorizontal: 12,
     paddingTop: 12,
+    marginTop: 60,
+    marginLeft: 210,
+    marginRight: 10,
   },
   glowEffect: {
     position: "absolute",

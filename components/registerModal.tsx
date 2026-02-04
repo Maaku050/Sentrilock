@@ -292,7 +292,7 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
             Register New Person
           </Heading>
           <ModalCloseButton>
-            <Icon as={CloseIcon} style={{ color: theme.text }} />
+            <Icon as={CloseIcon} color="white" />
           </ModalCloseButton>
         </ModalHeader>
 

@@ -8,6 +8,7 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  ModalCloseButton,
 } from "@/components/ui/modal";
 import { Heading } from "@/components/ui/heading";
 import { Text } from "@/components/ui/text";
@@ -21,7 +22,7 @@ import {
   CheckboxIcon,
   CheckboxLabel,
 } from "@/components/ui/checkbox";
-import { CheckIcon } from "@/components/ui/icon";
+import { CheckIcon, CloseIcon, Icon } from "@/components/ui/icon";
 import { Calendar, MapPin, Activity } from "lucide-react-native";
 import DateTimePicker from "@/components/DateTimePicker"; // Your custom component
 import { FilterOptions } from "@/app/screens/dashboard";
@@ -152,14 +153,18 @@ export function FilterModal({
           style={{
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
+            paddingBottom: 10,
           }}
         >
           <Heading size="lg" style={{ color: theme.text }}>
             Filter Activity Logs
           </Heading>
+          <ModalCloseButton>
+            <Icon as={CloseIcon} color="white" />
+          </ModalCloseButton>
         </ModalHeader>
 
-        <ModalBody>
+        <ModalBody showsVerticalScrollIndicator={false}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <VStack space="lg">
               {/* Date Range Section */}
