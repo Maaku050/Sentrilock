@@ -163,7 +163,7 @@ async function showSecurityAlert(
           type: "security_alert",
           severity: "critical",
           roomId: roomId,
-          url: "/dashboard",
+          url: "/",
           attempts: attempts.map((a) => ({
             id: a.id,
             timestamp: a.timestamp.toDate().toISOString(),

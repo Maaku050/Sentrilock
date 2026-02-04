@@ -282,9 +282,11 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
   };
 
   return (
-    <Modal isOpen={visible} onClose={handleClose} size="lg">
+    <Modal isOpen={visible} onClose={handleClose} size="full">
       <ModalBackdrop />
-      <ModalContent style={{ backgroundColor: theme.background }}>
+      <ModalContent
+        style={{ backgroundColor: theme.background, maxWidth: 1000 }}
+      >
         <ModalHeader>
           <Heading size="lg" style={{ color: theme.text }}>
             Register New Person
@@ -295,298 +297,300 @@ export function RegisterModal({ visible, onClose, onSuccess }: ModalTypes) {
         </ModalHeader>
 
         <ModalBody>
-          <VStack space="md">
-            {error && (
-              <Alert action="error" variant="solid">
-                <AlertText>{error}</AlertText>
-              </Alert>
-            )}
+          {error && (
+            <Alert action="error" variant="solid">
+              <AlertText>{error}</AlertText>
+            </Alert>
+          )}
 
-            {success && (
-              <Alert action="success" variant="solid">
-                <AlertText>{success}</AlertText>
-              </Alert>
-            )}
-
-            {/* Name Field */}
-            <FormControl size="md" isInvalid={!!nameError} isRequired>
-              <FormControlLabel>
-                <FormControlLabelText style={{ color: theme.text }}>
-                  Full Name
-                </FormControlLabelText>
-              </FormControlLabel>
-              <Input
-                className="my-1"
-                size="md"
-                style={{
-                  backgroundColor: theme.inputBg,
-                  borderColor: theme.border,
-                }}
-              >
-                <InputField
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChangeText={(text) => {
-                    setName(text);
-                    setNameError("");
-                  }}
-                  style={{ color: theme.text }}
-                  placeholderTextColor={theme.textMuted}
-                />
-              </Input>
-              {nameError && (
-                <FormControlError>
-                  <FormControlErrorIcon as={AlertCircleIcon} />
-                  <FormControlErrorText>{nameError}</FormControlErrorText>
-                </FormControlError>
-              )}
-            </FormControl>
-
-            {/* Email Field */}
-            <FormControl size="md" isInvalid={!!emailError}>
-              <FormControlLabel>
-                <FormControlLabelText style={{ color: theme.text }}>
-                  Email (Optional)
-                </FormControlLabelText>
-              </FormControlLabel>
-              <Input
-                className="my-1"
-                size="md"
-                style={{
-                  backgroundColor: theme.inputBg,
-                  borderColor: theme.border,
-                }}
-              >
-                <InputField
-                  type="text"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setEmailError("");
-                  }}
-                  style={{ color: theme.text }}
-                  placeholderTextColor={theme.textMuted}
-                />
-              </Input>
-              {emailError && (
-                <FormControlError>
-                  <FormControlErrorIcon as={AlertCircleIcon} />
-                  <FormControlErrorText>{emailError}</FormControlErrorText>
-                </FormControlError>
-              )}
-            </FormControl>
-
-            {/* Contact Field */}
-            <FormControl size="md">
-              <FormControlLabel>
-                <FormControlLabelText style={{ color: theme.text }}>
-                  Contact Number (Optional)
-                </FormControlLabelText>
-              </FormControlLabel>
-              <Input
-                className="my-1"
-                size="md"
-                style={{
-                  backgroundColor: theme.inputBg,
-                  borderColor: theme.border,
-                }}
-              >
-                <InputField
-                  type="text"
-                  placeholder="Enter your contact number"
-                  value={contact}
-                  onChangeText={(text) => setContact(text)}
-                  style={{ color: theme.text }}
-                  placeholderTextColor={theme.textMuted}
-                />
-              </Input>
-            </FormControl>
-
-            {/* Time-Based Access Control */}
-            <FormControl size="md" isInvalid={!!timeError}>
-              <FormControlLabel>
-                <HStack space="xs" style={{ alignItems: "center" }}>
-                  <Clock size={14} color={theme.warning} />
+          {success && (
+            <Alert action="success" variant="solid">
+              <AlertText>{success}</AlertText>
+            </Alert>
+          )}
+          <HStack space="sm">
+            <VStack space="lg" style={{ flex: 1 }}>
+              {/* Name Field */}
+              <FormControl size="md" isInvalid={!!nameError} isRequired>
+                <FormControlLabel>
                   <FormControlLabelText style={{ color: theme.text }}>
-                    Access Hours (Optional)
+                    Full Name
                   </FormControlLabelText>
-                </HStack>
-              </FormControlLabel>
-
-              <HStack space="md" style={{ alignItems: "flex-start" }}>
-                {/* Start Time */}
+                </FormControlLabel>
                 <Input
                   className="my-1"
                   size="md"
                   style={{
-                    flex: 1,
                     backgroundColor: theme.inputBg,
                     borderColor: theme.border,
                   }}
                 >
                   <InputField
                     type="text"
-                    placeholder="Start (00:00)"
-                    value={startTime}
+                    placeholder="Enter your name"
+                    value={name}
                     onChangeText={(text) => {
-                      setStartTime(text);
-                      setTimeError("");
+                      setName(text);
+                      setNameError("");
                     }}
                     style={{ color: theme.text }}
                     placeholderTextColor={theme.textMuted}
                   />
                 </Input>
+                {nameError && (
+                  <FormControlError>
+                    <FormControlErrorIcon as={AlertCircleIcon} />
+                    <FormControlErrorText>{nameError}</FormControlErrorText>
+                  </FormControlError>
+                )}
+              </FormControl>
 
-                {/* End Time */}
+              {/* Email Field */}
+              <FormControl size="md" isInvalid={!!emailError}>
+                <FormControlLabel>
+                  <FormControlLabelText style={{ color: theme.text }}>
+                    Email (Optional)
+                  </FormControlLabelText>
+                </FormControlLabel>
                 <Input
                   className="my-1"
                   size="md"
                   style={{
-                    flex: 1,
                     backgroundColor: theme.inputBg,
                     borderColor: theme.border,
                   }}
                 >
                   <InputField
                     type="text"
-                    placeholder="End (23:59)"
-                    value={endTime}
+                    placeholder="Enter your email"
+                    value={email}
                     onChangeText={(text) => {
-                      setEndTime(text);
-                      setTimeError("");
+                      setEmail(text);
+                      setEmailError("");
                     }}
                     style={{ color: theme.text }}
                     placeholderTextColor={theme.textMuted}
                   />
                 </Input>
-              </HStack>
+                {emailError && (
+                  <FormControlError>
+                    <FormControlErrorIcon as={AlertCircleIcon} />
+                    <FormControlErrorText>{emailError}</FormControlErrorText>
+                  </FormControlError>
+                )}
+              </FormControl>
 
-              {timeError && (
-                <FormControlError>
-                  <FormControlErrorIcon as={AlertCircleIcon} />
-                  <FormControlErrorText>{timeError}</FormControlErrorText>
-                </FormControlError>
-              )}
+              {/* Contact Field */}
+              <FormControl size="md">
+                <FormControlLabel>
+                  <FormControlLabelText style={{ color: theme.text }}>
+                    Contact Number (Optional)
+                  </FormControlLabelText>
+                </FormControlLabel>
+                <Input
+                  className="my-1"
+                  size="md"
+                  style={{
+                    backgroundColor: theme.inputBg,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <InputField
+                    type="text"
+                    placeholder="Enter your contact number"
+                    value={contact}
+                    onChangeText={(text) => setContact(text)}
+                    style={{ color: theme.text }}
+                    placeholderTextColor={theme.textMuted}
+                  />
+                </Input>
+              </FormControl>
+            </VStack>
+            <VStack space="md" style={{ flex: 1 }}>
+              {/* Time-Based Access Control */}
+              <FormControl size="md" isInvalid={!!timeError}>
+                <FormControlLabel>
+                  <HStack space="xs" style={{ alignItems: "center" }}>
+                    <Clock size={14} color={theme.warning} />
+                    <FormControlLabelText style={{ color: theme.text }}>
+                      Access Hours (Optional)
+                    </FormControlLabelText>
+                  </HStack>
+                </FormControlLabel>
 
-              <FormControlHelper>
-                <FormControlHelperText style={{ color: theme.textMuted }}>
-                  Use 24-hour format (HH:MM). Leave empty for 24/7 access.
-                </FormControlHelperText>
-              </FormControlHelper>
-            </FormControl>
-
-            {/* Image Input Field */}
-            <FormControl size="md" isInvalid={!!imageError} isRequired>
-              <FormControlLabel>
-                <FormControlLabelText style={{ color: theme.text }}>
-                  Profile Image
-                </FormControlLabelText>
-              </FormControlLabel>
-
-              <input
-                type="file"
-                accept="image/jpeg,image/jpg,image/png"
-                onChange={handleImageChange}
-                style={{
-                  marginTop: 4,
-                  marginBottom: 4,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: 6,
-                  padding: 8,
-                  width: "100%",
-                  backgroundColor: theme.inputBg,
-                  color: theme.text,
-                }}
-                disabled={isLoading}
-              />
-
-              {imageFile && !imageError && (
-                <FormControlHelper>
-                  <FormControlHelperText style={{ color: theme.textMuted }}>
-                    ✓ Selected: {imageFile.name} (
-                    {(imageFile.size / 1024).toFixed(2)} KB)
-                  </FormControlHelperText>
-                </FormControlHelper>
-              )}
-
-              {imageError && (
-                <FormControlError>
-                  <FormControlErrorIcon as={AlertCircleIcon} />
-                  <FormControlErrorText>{imageError}</FormControlErrorText>
-                </FormControlError>
-              )}
-
-              <FormControlHelper>
-                <FormControlHelperText style={{ color: theme.textMuted }}>
-                  Upload a clear photo showing your face. Max 10MB.
-                </FormControlHelperText>
-              </FormControlHelper>
-            </FormControl>
-
-            {/* Room Permissions */}
-            <FormControl size="md" isInvalid={!!roomError} isRequired>
-              <FormControlLabel>
-                <FormControlLabelText style={{ color: theme.text }}>
-                  Room Access Permissions
-                </FormControlLabelText>
-              </FormControlLabel>
-
-              <VStack
-                space="sm"
-                style={{
-                  backgroundColor: theme.cardBg,
-                  padding: 12,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-              >
-                {rooms.length === 0 ? (
-                  <Text
+                <HStack space="md" style={{ alignItems: "flex-start" }}>
+                  {/* Start Time */}
+                  <Input
+                    className="my-1"
+                    size="md"
                     style={{
-                      color: theme.textMuted,
-                      textAlign: "center",
-                      paddingVertical: 8,
+                      flex: 1,
+                      backgroundColor: theme.inputBg,
+                      borderColor: theme.border,
                     }}
                   >
-                    No rooms available
-                  </Text>
-                ) : (
-                  rooms.map((room) => (
-                    <Checkbox
-                      key={room.id}
-                      value={room.id}
-                      isChecked={selectedRooms.has(room.id)}
-                      onChange={() => toggleRoom(room.id)}
-                      size="md"
-                    >
-                      <CheckboxIndicator>
-                        <CheckboxIcon as={CheckIcon} />
-                      </CheckboxIndicator>
-                      <CheckboxLabel style={{ color: theme.text }}>
-                        {room.name}
-                      </CheckboxLabel>
-                    </Checkbox>
-                  ))
+                    <InputField
+                      type="text"
+                      placeholder="Start (00:00)"
+                      value={startTime}
+                      onChangeText={(text) => {
+                        setStartTime(text);
+                        setTimeError("");
+                      }}
+                      style={{ color: theme.text }}
+                      placeholderTextColor={theme.textMuted}
+                    />
+                  </Input>
+
+                  {/* End Time */}
+                  <Input
+                    className="my-1"
+                    size="md"
+                    style={{
+                      flex: 1,
+                      backgroundColor: theme.inputBg,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <InputField
+                      type="text"
+                      placeholder="End (23:59)"
+                      value={endTime}
+                      onChangeText={(text) => {
+                        setEndTime(text);
+                        setTimeError("");
+                      }}
+                      style={{ color: theme.text }}
+                      placeholderTextColor={theme.textMuted}
+                    />
+                  </Input>
+                </HStack>
+
+                {timeError && (
+                  <FormControlError>
+                    <FormControlErrorIcon as={AlertCircleIcon} />
+                    <FormControlErrorText>{timeError}</FormControlErrorText>
+                  </FormControlError>
                 )}
-              </VStack>
 
-              {roomError && (
-                <FormControlError>
-                  <FormControlErrorIcon as={AlertCircleIcon} />
-                  <FormControlErrorText>{roomError}</FormControlErrorText>
-                </FormControlError>
-              )}
+                <FormControlHelper>
+                  <FormControlHelperText style={{ color: theme.textMuted }}>
+                    Use 24-hour format (HH:MM). Leave empty for 24/7 access.
+                  </FormControlHelperText>
+                </FormControlHelper>
+              </FormControl>
 
-              <FormControlHelper>
-                <FormControlHelperText style={{ color: theme.textMuted }}>
-                  Select which rooms this person can access
-                </FormControlHelperText>
-              </FormControlHelper>
-            </FormControl>
-          </VStack>
+              {/* Image Input Field */}
+              <FormControl size="md" isInvalid={!!imageError} isRequired>
+                <FormControlLabel>
+                  <FormControlLabelText style={{ color: theme.text }}>
+                    Profile Image
+                  </FormControlLabelText>
+                </FormControlLabel>
+
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png"
+                  onChange={handleImageChange}
+                  style={{
+                    marginTop: 4,
+                    marginBottom: 4,
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: 6,
+                    padding: 8,
+                    width: "100%",
+                    backgroundColor: theme.inputBg,
+                    color: theme.text,
+                  }}
+                  disabled={isLoading}
+                />
+
+                {imageFile && !imageError && (
+                  <FormControlHelper>
+                    <FormControlHelperText style={{ color: theme.textMuted }}>
+                      ✓ Selected: {imageFile.name} (
+                      {(imageFile.size / 1024).toFixed(2)} KB)
+                    </FormControlHelperText>
+                  </FormControlHelper>
+                )}
+
+                {imageError && (
+                  <FormControlError>
+                    <FormControlErrorIcon as={AlertCircleIcon} />
+                    <FormControlErrorText>{imageError}</FormControlErrorText>
+                  </FormControlError>
+                )}
+
+                <FormControlHelper>
+                  <FormControlHelperText style={{ color: theme.textMuted }}>
+                    Upload a clear photo showing your face. Max 10MB.
+                  </FormControlHelperText>
+                </FormControlHelper>
+              </FormControl>
+
+              {/* Room Permissions */}
+              <FormControl size="md" isInvalid={!!roomError} isRequired>
+                <FormControlLabel>
+                  <FormControlLabelText style={{ color: theme.text }}>
+                    Room Access Permissions
+                  </FormControlLabelText>
+                </FormControlLabel>
+
+                <VStack
+                  space="sm"
+                  style={{
+                    backgroundColor: theme.cardBg,
+                    padding: 12,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  {rooms.length === 0 ? (
+                    <Text
+                      style={{
+                        color: theme.textMuted,
+                        textAlign: "center",
+                        paddingVertical: 8,
+                      }}
+                    >
+                      No rooms available
+                    </Text>
+                  ) : (
+                    rooms.map((room) => (
+                      <Checkbox
+                        key={room.id}
+                        value={room.id}
+                        isChecked={selectedRooms.has(room.id)}
+                        onChange={() => toggleRoom(room.id)}
+                        size="md"
+                      >
+                        <CheckboxIndicator>
+                          <CheckboxIcon as={CheckIcon} />
+                        </CheckboxIndicator>
+                        <CheckboxLabel style={{ color: theme.text }}>
+                          {room.name}
+                        </CheckboxLabel>
+                      </Checkbox>
+                    ))
+                  )}
+                </VStack>
+
+                {roomError && (
+                  <FormControlError>
+                    <FormControlErrorIcon as={AlertCircleIcon} />
+                    <FormControlErrorText>{roomError}</FormControlErrorText>
+                  </FormControlError>
+                )}
+
+                <FormControlHelper>
+                  <FormControlHelperText style={{ color: theme.textMuted }}>
+                    Select which rooms this person can access
+                  </FormControlHelperText>
+                </FormControlHelper>
+              </FormControl>
+            </VStack>
+          </HStack>
         </ModalBody>
 
         <ModalFooter>

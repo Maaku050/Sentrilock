@@ -221,16 +221,6 @@ export default function UsersScreen() {
             <Heading size="2xl" style={{ color: theme.text, flex: 1 }}>
               Registered Users
             </Heading>
-            <TouchableOpacity
-              onPress={handleRefresh}
-              style={{
-                padding: 8,
-                borderRadius: 8,
-                backgroundColor: theme.cardBg,
-              }}
-            >
-              <RefreshCw size={20} color={theme.accent} />
-            </TouchableOpacity>
           </HStack>
           <Text style={{ color: theme.textSecondary, fontSize: 16 }}>
             {profiles?.length || 0} {profiles?.length === 1 ? "user" : "users"}{" "}

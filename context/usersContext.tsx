@@ -136,8 +136,7 @@ export const UsersProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const refreshProfiles = () => {
-    setLoading(true);
-    // Firestore listener will automatically update
+    console.log("Faked refresh");
   };
 
   return (
