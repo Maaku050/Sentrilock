@@ -486,7 +486,7 @@ export function UserDetailModal({
               style={{
                 flex: 1,
                 borderWidth: 0,
-                maxHeight: 600,
+                maxHeight: 800,
               }}
             >
               {/* Left Section - User Details */}
