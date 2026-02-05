@@ -15,7 +15,7 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
-import { LayoutDashboard, LogOut, UsersRound } from "lucide-react-native";
+import { LayoutDashboard, LogOut, UsersRound, Menu } from "lucide-react-native";
 import "@/global.css";
 import { DashboardProvider } from "@/context/dashboardContext";
 import { Heading } from "@/components/ui/heading";
@@ -35,6 +35,7 @@ import { UsersProvider } from "@/context/usersContext";
 import { RoomsProvider } from "@/context/roomsContext";
 import { AdminGuard } from "@/components/AdminGuard";
 import { clearAdminSession } from "@/utils/adminAuth";
+import { DrawerActions } from "@react-navigation/native";
 
 // Theme Context
 interface ThemeContextType {
@@ -139,12 +140,35 @@ function LogoutButton() {
   );
 }
 
-function ScreensLayout() {
-  const dimensions = useWindowDimensions();
-  const [isDark, setIsDark] = useState(true);
+// Custom Header Left Component with Drawer Toggle
+function HeaderLeft({ icon: Icon, navigation, isMobile }: any) {
+  if (isMobile) {
+    return (
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+        <TouchableOpacity
+          onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}
+          style={{ paddingLeft: 10 }}
+        >
+          <Menu color="white" size={24} />
+        </TouchableOpacity>
+        <Icon color="white" size={24} />
+      </View>
+    );
+  }
 
+  return (
+    <View style={{ marginLeft: 10 }}>
+      <Icon color="white" size={24} />
+    </View>
+  );
+}
+
+function ScreensLayout() {
+  const [isDark, setIsDark] = useState(true);
+  const dimensions = useWindowDimensions();
   const isLargeScreen = dimensions.width >= 1280;
   const isMediumScreen = dimensions.width <= 1280 && dimensions.width > 768;
+  const isMobile = dimensions.width <= 768;
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -174,8 +198,8 @@ function ScreensLayout() {
                   drawerType: isLargeScreen
                     ? "permanent"
                     : isMediumScreen
-                      ? "slide"
-                      : "slide",
+                      ? "front"
+                      : "front",
                   drawerStyle: isLargeScreen
                     ? {
                         width: 200,
@@ -219,7 +243,7 @@ function ScreensLayout() {
               >
                 <Drawer.Screen
                   name="dashboard"
-                  options={{
+                  options={({ navigation }) => ({
                     title: "Dashboard",
                     drawerIcon: ({ color }) => (
                       <LayoutDashboard
@@ -234,22 +258,21 @@ function ScreensLayout() {
                       </Heading>
                     ),
                     headerLeft: () => (
-                      <>
-                        <LayoutDashboard
-                          color={"white"}
-                          style={{ marginLeft: 10 }}
-                        />
-                      </>
+                      <HeaderLeft
+                        icon={LayoutDashboard}
+                        navigation={navigation}
+                        isMobile={isMobile}
+                      />
                     ),
                     headerStyle: {
                       ...styles.headerSpace,
                       backgroundColor: theme.headerBg,
                     },
-                  }}
+                  })}
                 />
                 <Drawer.Screen
                   name="registeredUsers"
-                  options={{
+                  options={({ navigation }) => ({
                     title: "Users",
                     drawerIcon: ({ color }) => (
                       <UsersRound color={color} size={25} className="mr-2" />
@@ -260,22 +283,21 @@ function ScreensLayout() {
                       </Heading>
                     ),
                     headerLeft: () => (
-                      <>
-                        <UsersRound
-                          color={"white"}
-                          style={{ marginLeft: 10 }}
-                        />
-                      </>
+                      <HeaderLeft
+                        icon={UsersRound}
+                        navigation={navigation}
+                        isMobile={isMobile}
+                      />
                     ),
                     headerStyle: {
                       ...styles.headerSpace,
                       backgroundColor: theme.headerBg,
                     },
-                  }}
+                  })}
                 />
                 <Drawer.Screen
                   name="bulkDeleteLogs"
-                  options={{
+                  options={({ navigation }) => ({
                     title: "Delete",
                     drawerItemStyle: { display: "none" },
                     drawerIcon: ({ color }) => (
@@ -287,18 +309,17 @@ function ScreensLayout() {
                       </Heading>
                     ),
                     headerLeft: () => (
-                      <>
-                        <UsersRound
-                          color={"white"}
-                          style={{ marginLeft: 10 }}
-                        />
-                      </>
+                      <HeaderLeft
+                        icon={UsersRound}
+                        navigation={navigation}
+                        isMobile={isMobile}
+                      />
                     ),
                     headerStyle: {
                       ...styles.headerSpace,
                       backgroundColor: theme.headerBg,
                     },
-                  }}
+                  })}
                 />
               </Drawer>
             </GluestackUIProvider>

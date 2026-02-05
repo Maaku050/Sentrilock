@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { useTheme } from "./_layout";
 import { useLogs } from "@/context/dashboardContext";
@@ -26,6 +27,7 @@ import { FilterModal } from "@/components/filterModal";
 import { Input, InputField } from "@/components/ui/input";
 import NotificationHandler from "@/components/NotificationHandler";
 import { SecurityAlertBanner } from "@/components/SecurityAlertBanner";
+import Pagination from "@/components/customPagination";
 import * as Print from "expo-print";
 
 export type FilterOptions = {
@@ -37,9 +39,16 @@ export type FilterOptions = {
   actions: string[];
 };
 
+const LOGS_PER_PAGE = 5;
+
 export default function DashboardScreen() {
   const { logs, loading, error, roomsUI, rooms } = useLogs();
   const { isDark } = useTheme();
+  const dimensions = useWindowDimensions();
+
+  // Responsive breakpoints
+  const isMobile = dimensions.width < 768;
+  const isDesktop = dimensions.width >= 768;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -52,6 +61,7 @@ export default function DashboardScreen() {
     actions: [],
   });
   const [selectedAlertLog, setSelectedAlertLog] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const theme = {
     background: isDark ? "#000" : "#fff",
@@ -155,6 +165,19 @@ export default function DashboardScreen() {
     return filtered;
   }, [logs, searchQuery, filters]);
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredLogs.length / LOGS_PER_PAGE);
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * LOGS_PER_PAGE;
+    const endIndex = startIndex + LOGS_PER_PAGE;
+    return filteredLogs.slice(startIndex, endIndex);
+  }, [filteredLogs, currentPage]);
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [filteredLogs.length]);
+
   // Check if any filters are active
   const hasActiveFilters = useMemo(() => {
     return (
@@ -193,6 +216,10 @@ export default function DashboardScreen() {
         setSelectedAlertLog(null);
       }, 5000); // Clear highlight after 5 seconds
     }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
   const handlePrintLogs = async () => {
@@ -446,422 +473,867 @@ export default function DashboardScreen() {
       {/* Notification Handler Component */}
       <NotificationHandler />
 
-      <HStack
-        style={{ ...styles.container, backgroundColor: theme.background }}
-        space="md"
-      >
-        <View style={styles.roomGrid}>
-          {roomsUI.map((room) => (
-            <View key={room.id} style={styles.roomGridItem}>
-              <RoomCard room={room} isDark={isDark} />
-            </View>
-          ))}
-        </View>
-
-        <View
-          style={[
-            styles.logsSection,
-            {
-              backgroundColor: theme.cardBg,
-              borderColor: theme.border,
-            },
-          ]}
+      {isMobile ? (
+        <ScrollView
+          style={{ ...styles.container, backgroundColor: theme.background }}
+          showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.logHeader}>
-            <HStack space="sm" style={{ alignItems: "center" }}>
-              <Activity size={22} color={"#3b82f6"} />
-              <Text style={[styles.logsTitle, { color: theme.text }]}>
-                Activity Logs
-              </Text>
-            </HStack>
-
-            <Text style={{ color: theme.textMuted, fontSize: 13 }}>
-              {filteredLogs.length} of {logs.length}{" "}
-              {filteredLogs.length === 1 ? "entry" : "entries"}
-            </Text>
+          <View>
+            {roomsUI.map((room) => (
+              <View key={room.id} style={styles.roomGridItem}>
+                <RoomCard room={room} isDark={isDark} />
+              </View>
+            ))}
           </View>
 
-          {/* Search and Filter Bar */}
-          <VStack space="sm" style={{ marginBottom: 12 }}>
-            <HStack space="sm" style={{ alignItems: "center" }}>
-              {/* Search Input */}
-              <View style={styles.searchInputContainer}>
-                <Search size={20} color="#6b7280" style={styles.searchIcon} />
-                <Input style={styles.searchInput}>
-                  <InputField
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search by user name..."
-                    placeholderTextColor="#9ca3af"
-                  />
-                </Input>
-                {searchQuery && (
-                  <TouchableOpacity
-                    onPress={() => setSearchQuery("")}
-                    style={styles.clearButton}
-                  >
-                    <X size={18} color="#6b7280" />
-                  </TouchableOpacity>
-                )}
+          <ScrollView horizontal>
+            <View
+              style={[
+                styles.logsSection,
+                {
+                  backgroundColor: theme.cardBg,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              {/* Header */}
+              <View style={styles.logHeader}>
+                <HStack space="sm" style={{ alignItems: "center" }}>
+                  <Activity size={22} color={"#3b82f6"} />
+                  <Text style={[styles.logsTitle, { color: theme.text }]}>
+                    Activity Logs
+                  </Text>
+                </HStack>
+
+                <Text style={{ color: theme.textMuted, fontSize: 13 }}>
+                  {filteredLogs.length} of {logs.length}{" "}
+                  {filteredLogs.length === 1 ? "entry" : "entries"}
+                </Text>
               </View>
 
-              {/* Print Button */}
-              <TouchableOpacity
-                onPress={handlePrintLogs}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: theme.inputBg,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  paddingHorizontal: 12,
-                  height: 40,
-                  gap: 6,
-                }}
-              >
-                <Printer size={18} color={theme.text} />
-                <Text
-                  style={{
-                    color: theme.text,
-                    fontSize: 14,
-                    fontWeight: "600",
-                  }}
-                >
-                  Print
-                </Text>
-              </TouchableOpacity>
+              {/* Search and Filter Bar */}
+              <VStack space="sm" style={{ marginBottom: 12 }}>
+                <HStack space="sm" style={{ alignItems: "center" }}>
+                  {/* Search Input */}
+                  <View style={styles.searchInputContainer}>
+                    <Search
+                      size={20}
+                      color="#6b7280"
+                      style={styles.searchIcon}
+                    />
+                    <Input style={styles.searchInput}>
+                      <InputField
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholder="Search by user name..."
+                        placeholderTextColor="#9ca3af"
+                      />
+                    </Input>
+                    {searchQuery && (
+                      <TouchableOpacity
+                        onPress={() => setSearchQuery("")}
+                        style={styles.clearButton}
+                      >
+                        <X size={18} color="#6b7280" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
 
-              {/* Filter Button */}
-              <TouchableOpacity
-                onPress={() => setShowFilterModal(true)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: hasActiveFilters
-                    ? theme.accent
-                    : theme.inputBg,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: hasActiveFilters ? theme.accent : theme.border,
-                  paddingHorizontal: 12,
-                  height: 40,
-                  gap: 6,
-                }}
-              >
-                <Filter
-                  size={18}
-                  color={hasActiveFilters ? "#fff" : theme.text}
-                />
-                <Text
-                  style={{
-                    color: hasActiveFilters ? "#fff" : theme.text,
-                    fontSize: 14,
-                    fontWeight: "600",
-                  }}
-                >
-                  Filter
-                </Text>
+                  {/* Print Button */}
+                  <TouchableOpacity
+                    onPress={handlePrintLogs}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: theme.inputBg,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      paddingHorizontal: 12,
+                      height: 40,
+                      gap: 6,
+                    }}
+                  >
+                    <Printer size={18} color={theme.text} />
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 14,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Print
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Filter Button */}
+                  <TouchableOpacity
+                    onPress={() => setShowFilterModal(true)}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: hasActiveFilters
+                        ? theme.accent
+                        : theme.inputBg,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: hasActiveFilters
+                        ? theme.accent
+                        : theme.border,
+                      paddingHorizontal: 12,
+                      height: 40,
+                      gap: 6,
+                    }}
+                  >
+                    <Filter
+                      size={18}
+                      color={hasActiveFilters ? "#fff" : theme.text}
+                    />
+                    <Text
+                      style={{
+                        color: hasActiveFilters ? "#fff" : theme.text,
+                        fontSize: 14,
+                        fontWeight: "600",
+                      }}
+                    >
+                      Filter
+                    </Text>
+                    {hasActiveFilters && (
+                      <View
+                        style={{
+                          backgroundColor: "#fff",
+                          borderRadius: 10,
+                          width: 20,
+                          height: 20,
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.accent,
+                            fontSize: 11,
+                            fontWeight: "700",
+                          }}
+                        >
+                          {(filters.rooms.length > 0 ? 1 : 0) +
+                            (filters.actions.length > 0 ? 1 : 0) +
+                            (filters.dateRange.startDate ||
+                            filters.dateRange.endDate
+                              ? 1
+                              : 0)}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </HStack>
+
+                {/* Active Filters Display */}
                 {hasActiveFilters && (
+                  <HStack
+                    space="xs"
+                    style={{ alignItems: "center", flexWrap: "wrap" }}
+                  >
+                    <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                      Active filters:
+                    </Text>
+
+                    {filters.dateRange.startDate && (
+                      <View
+                        style={{
+                          backgroundColor: theme.accent + "20",
+                          borderRadius: 12,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.accent,
+                            fontSize: 11,
+                            fontWeight: "600",
+                          }}
+                        >
+                          From:{" "}
+                          {filters.dateRange.startDate.toLocaleDateString()}
+                        </Text>
+                      </View>
+                    )}
+
+                    {filters.dateRange.endDate && (
+                      <View
+                        style={{
+                          backgroundColor: theme.accent + "20",
+                          borderRadius: 12,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.accent,
+                            fontSize: 11,
+                            fontWeight: "600",
+                          }}
+                        >
+                          To: {filters.dateRange.endDate.toLocaleDateString()}
+                        </Text>
+                      </View>
+                    )}
+
+                    {filters.rooms.length > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: theme.accent + "20",
+                          borderRadius: 12,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.accent,
+                            fontSize: 11,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {filters.rooms.length}{" "}
+                          {filters.rooms.length === 1 ? "room" : "rooms"}
+                        </Text>
+                      </View>
+                    )}
+
+                    {filters.actions.length > 0 && (
+                      <View
+                        style={{
+                          backgroundColor: theme.accent + "20",
+                          borderRadius: 12,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.accent,
+                            fontSize: 11,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {filters.actions.length}{" "}
+                          {filters.actions.length === 1 ? "action" : "actions"}
+                        </Text>
+                      </View>
+                    )}
+
+                    <TouchableOpacity onPress={handleClearFilters}>
+                      <Text
+                        style={{
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: "600",
+                          textDecorationLine: "underline",
+                        }}
+                      >
+                        Clear all
+                      </Text>
+                    </TouchableOpacity>
+                  </HStack>
+                )}
+              </VStack>
+
+              {/* Logs List */}
+              <ScrollView
+                style={styles.logsContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {loading && (
+                  <Text style={{ color: theme.textMuted }}>
+                    Loading logs...
+                  </Text>
+                )}
+                {error && <Text style={{ color: "red" }}>{error}</Text>}
+
+                {!loading && filteredLogs.length === 0 && (
                   <View
                     style={{
-                      backgroundColor: "#fff",
-                      borderRadius: 10,
-                      width: 20,
-                      height: 20,
+                      flex: 1,
                       justifyContent: "center",
                       alignItems: "center",
+                      paddingVertical: 40,
                     }}
                   >
+                    <Activity
+                      size={48}
+                      color={theme.textMuted}
+                      style={{ opacity: 0.3 }}
+                    />
                     <Text
                       style={{
-                        color: theme.accent,
-                        fontSize: 11,
-                        fontWeight: "700",
+                        color: theme.textMuted,
+                        fontSize: 14,
+                        marginTop: 12,
+                        textAlign: "center",
                       }}
                     >
-                      {(filters.rooms.length > 0 ? 1 : 0) +
-                        (filters.actions.length > 0 ? 1 : 0) +
-                        (filters.dateRange.startDate ||
-                        filters.dateRange.endDate
-                          ? 1
-                          : 0)}
+                      No logs found
+                      {(searchQuery || hasActiveFilters) &&
+                        "\nTry adjusting your filters"}
                     </Text>
                   </View>
                 )}
-              </TouchableOpacity>
-            </HStack>
 
-            {/* Active Filters Display */}
-            {hasActiveFilters && (
-              <HStack
-                space="xs"
-                style={{ alignItems: "center", flexWrap: "wrap" }}
-              >
-                <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-                  Active filters:
+                {paginatedLogs.map((log) => {
+                  const actionColors = getActionBadgeColor(log.action);
+                  const isHighlighted = selectedAlertLog === log.id;
+
+                  return (
+                    <View
+                      key={log.id}
+                      style={{
+                        padding: 12,
+                        marginBottom: 8,
+                        backgroundColor: isHighlighted
+                          ? "#ef444420"
+                          : theme.background,
+                        borderRadius: 10,
+                        borderWidth: isHighlighted ? 2 : 1,
+                        borderColor: isHighlighted ? "#ef4444" : theme.border,
+                      }}
+                    >
+                      {/* Top Row: Action + Room */}
+                      <HStack
+                        space="sm"
+                        style={{ alignItems: "flex-start", marginBottom: 6 }}
+                      >
+                        {/* Action Badge */}
+                        <View
+                          style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 4,
+                            backgroundColor: actionColors.bg,
+                            borderRadius: 12,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: actionColors.text,
+                              fontSize: 12,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {formatAction(log.action)}
+                          </Text>
+                        </View>
+
+                        {/* Room Badge */}
+                        <View
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            backgroundColor: theme.cardBg,
+                            borderRadius: 8,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <MapPin size={12} color={theme.textMuted} />
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 11,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {log.roomId}
+                          </Text>
+                        </View>
+                      </HStack>
+
+                      {/* User */}
+                      <Text
+                        style={{
+                          color: theme.textSecondary,
+                          fontSize: 13,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {log?.user?.name === "null"
+                          ? null
+                          : log?.user?.name === "Unknown"
+                            ? null
+                            : log?.user?.name === "Admin"
+                              ? null
+                              : log?.user?.name}
+                      </Text>
+
+                      {/* Timestamp */}
+                      <HStack space="xs" style={{ alignItems: "center" }}>
+                        <Clock size={14} color={theme.textMuted} />
+                        <Text
+                          style={{
+                            color: theme.textMuted,
+                            fontSize: 12,
+                          }}
+                        >
+                          {log?.timestamp
+                            ? log.timestamp.toDate().toLocaleString()
+                            : "N/A"}
+                        </Text>
+                      </HStack>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+
+              {/* Pagination Component */}
+              {!loading && filteredLogs.length > 0 && (
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              )}
+            </View>
+          </ScrollView>
+        </ScrollView>
+      ) : (
+        <HStack
+          style={{ ...styles.container, backgroundColor: theme.background }}
+          space="md"
+        >
+          <View style={styles.roomGrid}>
+            {roomsUI.map((room) => (
+              <View key={room.id} style={styles.roomGridItem}>
+                <RoomCard room={room} isDark={isDark} />
+              </View>
+            ))}
+          </View>
+
+          <View
+            style={[
+              styles.logsSection,
+              {
+                backgroundColor: theme.cardBg,
+                borderColor: theme.border,
+              },
+            ]}
+          >
+            {/* Header */}
+            <View style={styles.logHeader}>
+              <HStack space="sm" style={{ alignItems: "center" }}>
+                <Activity size={22} color={"#3b82f6"} />
+                <Text style={[styles.logsTitle, { color: theme.text }]}>
+                  Activity Logs
                 </Text>
+              </HStack>
 
-                {filters.dateRange.startDate && (
-                  <View
-                    style={{
-                      backgroundColor: theme.accent + "20",
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.accent,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
+              <Text style={{ color: theme.textMuted, fontSize: 13 }}>
+                {filteredLogs.length} of {logs.length}{" "}
+                {filteredLogs.length === 1 ? "entry" : "entries"}
+              </Text>
+            </View>
+
+            {/* Search and Filter Bar */}
+            <VStack space="sm" style={{ marginBottom: 12 }}>
+              <HStack space="sm" style={{ alignItems: "center" }}>
+                {/* Search Input */}
+                <View style={styles.searchInputContainer}>
+                  <Search size={20} color="#6b7280" style={styles.searchIcon} />
+                  <Input style={styles.searchInput}>
+                    <InputField
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                      placeholder="Search by user name..."
+                      placeholderTextColor="#9ca3af"
+                    />
+                  </Input>
+                  {searchQuery && (
+                    <TouchableOpacity
+                      onPress={() => setSearchQuery("")}
+                      style={styles.clearButton}
                     >
-                      From: {filters.dateRange.startDate.toLocaleDateString()}
-                    </Text>
-                  </View>
-                )}
+                      <X size={18} color="#6b7280" />
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-                {filters.dateRange.endDate && (
-                  <View
-                    style={{
-                      backgroundColor: theme.accent + "20",
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.accent,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
-                      To: {filters.dateRange.endDate.toLocaleDateString()}
-                    </Text>
-                  </View>
-                )}
-
-                {filters.rooms.length > 0 && (
-                  <View
-                    style={{
-                      backgroundColor: theme.accent + "20",
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.accent,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {filters.rooms.length}{" "}
-                      {filters.rooms.length === 1 ? "room" : "rooms"}
-                    </Text>
-                  </View>
-                )}
-
-                {filters.actions.length > 0 && (
-                  <View
-                    style={{
-                      backgroundColor: theme.accent + "20",
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.accent,
-                        fontSize: 11,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {filters.actions.length}{" "}
-                      {filters.actions.length === 1 ? "action" : "actions"}
-                    </Text>
-                  </View>
-                )}
-
-                <TouchableOpacity onPress={handleClearFilters}>
+                {/* Print Button */}
+                <TouchableOpacity
+                  onPress={handlePrintLogs}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: theme.inputBg,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    paddingHorizontal: 12,
+                    height: 40,
+                    gap: 6,
+                  }}
+                >
+                  <Printer size={18} color={theme.text} />
                   <Text
                     style={{
-                      color: theme.accent,
-                      fontSize: 11,
+                      color: theme.text,
+                      fontSize: 14,
                       fontWeight: "600",
-                      textDecorationLine: "underline",
                     }}
                   >
-                    Clear all
+                    Print
                   </Text>
                 </TouchableOpacity>
-              </HStack>
-            )}
-          </VStack>
 
-          {/* Logs List */}
-          <ScrollView
-            style={styles.logsContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {loading && (
-              <Text style={{ color: theme.textMuted }}>Loading logs...</Text>
-            )}
-            {error && <Text style={{ color: "red" }}>{error}</Text>}
-
-            {!loading && filteredLogs.length === 0 && (
-              <View
-                style={{
-                  flex: 1,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  paddingVertical: 40,
-                }}
-              >
-                <Activity
-                  size={48}
-                  color={theme.textMuted}
-                  style={{ opacity: 0.3 }}
-                />
-                <Text
+                {/* Filter Button */}
+                <TouchableOpacity
+                  onPress={() => setShowFilterModal(true)}
                   style={{
-                    color: theme.textMuted,
-                    fontSize: 14,
-                    marginTop: 12,
-                    textAlign: "center",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: hasActiveFilters
+                      ? theme.accent
+                      : theme.inputBg,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: hasActiveFilters ? theme.accent : theme.border,
+                    paddingHorizontal: 12,
+                    height: 40,
+                    gap: 6,
                   }}
                 >
-                  No logs found
-                  {(searchQuery || hasActiveFilters) &&
-                    "\nTry adjusting your filters"}
-                </Text>
-              </View>
-            )}
-
-            {filteredLogs.map((log) => {
-              const actionColors = getActionBadgeColor(log.action);
-              const isHighlighted = selectedAlertLog === log.id;
-
-              return (
-                <View
-                  key={log.id}
-                  style={{
-                    padding: 12,
-                    marginBottom: 8,
-                    backgroundColor: isHighlighted
-                      ? "#ef444420"
-                      : theme.background,
-                    borderRadius: 10,
-                    borderWidth: isHighlighted ? 2 : 1,
-                    borderColor: isHighlighted ? "#ef4444" : theme.border,
-                  }}
-                >
-                  {/* Top Row: Action + Room */}
-                  <HStack
-                    space="sm"
-                    style={{ alignItems: "flex-start", marginBottom: 6 }}
+                  <Filter
+                    size={18}
+                    color={hasActiveFilters ? "#fff" : theme.text}
+                  />
+                  <Text
+                    style={{
+                      color: hasActiveFilters ? "#fff" : theme.text,
+                      fontSize: 14,
+                      fontWeight: "600",
+                    }}
                   >
-                    {/* Action Badge */}
+                    Filter
+                  </Text>
+                  {hasActiveFilters && (
                     <View
                       style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 4,
-                        backgroundColor: actionColors.bg,
-                        borderRadius: 12,
+                        backgroundColor: "#fff",
+                        borderRadius: 10,
+                        width: 20,
+                        height: 20,
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
                       <Text
                         style={{
-                          color: actionColors.text,
-                          fontSize: 12,
-                          fontWeight: "600",
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: "700",
                         }}
                       >
-                        {formatAction(log.action)}
+                        {(filters.rooms.length > 0 ? 1 : 0) +
+                          (filters.actions.length > 0 ? 1 : 0) +
+                          (filters.dateRange.startDate ||
+                          filters.dateRange.endDate
+                            ? 1
+                            : 0)}
                       </Text>
                     </View>
+                  )}
+                </TouchableOpacity>
+              </HStack>
 
-                    {/* Room Badge */}
+              {/* Active Filters Display */}
+              {hasActiveFilters && (
+                <HStack
+                  space="xs"
+                  style={{ alignItems: "center", flexWrap: "wrap" }}
+                >
+                  <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                    Active filters:
+                  </Text>
+
+                  {filters.dateRange.startDate && (
                     <View
                       style={{
+                        backgroundColor: theme.accent + "20",
+                        borderRadius: 12,
                         paddingHorizontal: 8,
                         paddingVertical: 4,
-                        backgroundColor: theme.cardBg,
-                        borderRadius: 8,
                         flexDirection: "row",
                         alignItems: "center",
                         gap: 4,
                       }}
                     >
-                      <MapPin size={12} color={theme.textMuted} />
                       <Text
                         style={{
-                          color: theme.textSecondary,
+                          color: theme.accent,
                           fontSize: 11,
                           fontWeight: "600",
                         }}
                       >
-                        {log.roomId}
+                        From: {filters.dateRange.startDate.toLocaleDateString()}
                       </Text>
                     </View>
-                  </HStack>
+                  )}
 
-                  {/* User */}
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 13,
-                      marginBottom: 4,
-                    }}
-                  >
-                    {log?.user?.name === "null"
-                      ? null
-                      : log?.user?.name || "Unknown User"}
-                  </Text>
-
-                  {/* Timestamp */}
-                  <HStack space="xs" style={{ alignItems: "center" }}>
-                    <Clock size={14} color={theme.textMuted} />
-                    <Text
+                  {filters.dateRange.endDate && (
+                    <View
                       style={{
-                        color: theme.textMuted,
-                        fontSize: 12,
+                        backgroundColor: theme.accent + "20",
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
                       }}
                     >
-                      {log?.timestamp
-                        ? log.timestamp.toDate().toLocaleString()
-                        : "N/A"}
-                    </Text>
-                  </HStack>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
+                      <Text
+                        style={{
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        To: {filters.dateRange.endDate.toLocaleDateString()}
+                      </Text>
+                    </View>
+                  )}
 
-        {/* Filter Modal */}
-        <FilterModal
-          visible={showFilterModal}
-          onClose={() => setShowFilterModal(false)}
-          onApply={handleApplyFilters}
-          currentFilters={filters}
-          availableRooms={availableRooms}
-          availableActions={availableActions}
-          isDark={isDark}
-        />
-      </HStack>
+                  {filters.rooms.length > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: theme.accent + "20",
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {filters.rooms.length}{" "}
+                        {filters.rooms.length === 1 ? "room" : "rooms"}
+                      </Text>
+                    </View>
+                  )}
+
+                  {filters.actions.length > 0 && (
+                    <View
+                      style={{
+                        backgroundColor: theme.accent + "20",
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.accent,
+                          fontSize: 11,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {filters.actions.length}{" "}
+                        {filters.actions.length === 1 ? "action" : "actions"}
+                      </Text>
+                    </View>
+                  )}
+
+                  <TouchableOpacity onPress={handleClearFilters}>
+                    <Text
+                      style={{
+                        color: theme.accent,
+                        fontSize: 11,
+                        fontWeight: "600",
+                        textDecorationLine: "underline",
+                      }}
+                    >
+                      Clear all
+                    </Text>
+                  </TouchableOpacity>
+                </HStack>
+              )}
+            </VStack>
+
+            {/* Logs List */}
+            <ScrollView
+              style={styles.logsContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {loading && (
+                <Text style={{ color: theme.textMuted }}>Loading logs...</Text>
+              )}
+              {error && <Text style={{ color: "red" }}>{error}</Text>}
+
+              {!loading && filteredLogs.length === 0 && (
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingVertical: 40,
+                  }}
+                >
+                  <Activity
+                    size={48}
+                    color={theme.textMuted}
+                    style={{ opacity: 0.3 }}
+                  />
+                  <Text
+                    style={{
+                      color: theme.textMuted,
+                      fontSize: 14,
+                      marginTop: 12,
+                      textAlign: "center",
+                    }}
+                  >
+                    No logs found
+                    {(searchQuery || hasActiveFilters) &&
+                      "\nTry adjusting your filters"}
+                  </Text>
+                </View>
+              )}
+
+              {paginatedLogs.map((log) => {
+                const actionColors = getActionBadgeColor(log.action);
+                const isHighlighted = selectedAlertLog === log.id;
+
+                return (
+                  <View
+                    key={log.id}
+                    style={{
+                      padding: 12,
+                      marginBottom: 8,
+                      backgroundColor: isHighlighted
+                        ? "#ef444420"
+                        : theme.background,
+                      borderRadius: 10,
+                      borderWidth: isHighlighted ? 2 : 1,
+                      borderColor: isHighlighted ? "#ef4444" : theme.border,
+                    }}
+                  >
+                    {/* Top Row: Action + Room */}
+                    <HStack
+                      space="sm"
+                      style={{ alignItems: "flex-start", marginBottom: 6 }}
+                    >
+                      {/* Action Badge */}
+                      <View
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 4,
+                          backgroundColor: actionColors.bg,
+                          borderRadius: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: actionColors.text,
+                            fontSize: 12,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {formatAction(log.action)}
+                        </Text>
+                      </View>
+
+                      {/* Room Badge */}
+                      <View
+                        style={{
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          backgroundColor: theme.cardBg,
+                          borderRadius: 8,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <MapPin size={12} color={theme.textMuted} />
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 11,
+                            fontWeight: "600",
+                          }}
+                        >
+                          {log.roomId}
+                        </Text>
+                      </View>
+                    </HStack>
+
+                    {/* User */}
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        marginBottom: 4,
+                      }}
+                    >
+                      {log?.user?.name === "null"
+                        ? null
+                        : log?.user?.name === "Unknown"
+                          ? null
+                          : log?.user?.name === "Admin"
+                            ? null
+                            : log?.user?.name}
+                    </Text>
+
+                    {/* Timestamp */}
+                    <HStack space="xs" style={{ alignItems: "center" }}>
+                      <Clock size={14} color={theme.textMuted} />
+                      <Text
+                        style={{
+                          color: theme.textMuted,
+                          fontSize: 12,
+                        }}
+                      >
+                        {log?.timestamp
+                          ? log.timestamp.toDate().toLocaleString()
+                          : "N/A"}
+                      </Text>
+                    </HStack>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* Pagination Component */}
+            {!loading && filteredLogs.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            )}
+          </View>
+        </HStack>
+      )}
+
+      {/* Filter Modal */}
+      <FilterModal
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        onApply={handleApplyFilters}
+        currentFilters={filters}
+        availableRooms={availableRooms}
+        availableActions={availableActions}
+        isDark={isDark}
+      />
     </>
   );
 }
@@ -890,6 +1362,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+    paddingBottom: 0,
   },
   logHeader: {
     flexDirection: "row",

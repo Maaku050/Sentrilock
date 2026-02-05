@@ -1,7 +1,13 @@
 // app/screens/registeredUsers.tsx
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import React, { useState } from "react";
-import { View, TouchableOpacity, Pressable, Alert } from "react-native";
+import {
+  View,
+  TouchableOpacity,
+  Pressable,
+  Alert,
+  useWindowDimensions,
+} from "react-native";
 import { Card } from "@/components/ui/card";
 import { Image } from "@/components/ui/image";
 import { Heading } from "@/components/ui/heading";
@@ -102,6 +108,12 @@ export default function UsersScreen() {
   const { isDark } = useTheme();
   const { profiles, loading: usersLoading, refreshProfiles } = useUsers();
   const { rooms, loading: roomsLoading } = useRooms();
+
+  const dimensions = useWindowDimensions();
+
+  // Responsive breakpoints
+  const isMobile = dimensions.width < 768;
+  const isDesktop = dimensions.width >= 768;
 
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profiles | null>(null);
@@ -289,7 +301,7 @@ export default function UsersScreen() {
                   }}
                 >
                   <Pressable
-                    onPress={() => handleCardPress(user)}
+                    onPress={() => (isMobile ? null : handleCardPress(user))}
                     style={({ pressed }) => ({
                       transform: [{ scale: pressed ? 0.98 : 1 }],
                     })}
@@ -558,17 +570,19 @@ export default function UsersScreen() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <Fab
-        size="md"
-        placement="bottom right"
-        onPress={() => setShowRegisterModal(true)}
-        style={{
-          backgroundColor: theme.accent,
-        }}
-      >
-        <FabIcon as={AddIcon} color="#fff" />
-        <FabLabel style={{ color: "#fff" }}>Register</FabLabel>
-      </Fab>
+      {isMobile ? null : (
+        <Fab
+          size="md"
+          placement="bottom right"
+          onPress={() => setShowRegisterModal(true)}
+          style={{
+            backgroundColor: theme.accent,
+          }}
+        >
+          <FabIcon as={AddIcon} color="#fff" />
+          <FabLabel style={{ color: "#fff" }}>Register</FabLabel>
+        </Fab>
+      )}
 
       {/* Register Modal */}
       <RegisterModal

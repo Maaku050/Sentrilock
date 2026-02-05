@@ -1,6 +1,11 @@
 // components/filterModal.tsx
 import React, { useState, useEffect } from "react";
-import { View, ScrollView, TouchableOpacity } from "react-native";
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  useWindowDimensions,
+} from "react-native";
 import {
   Modal,
   ModalBackdrop,
@@ -47,6 +52,11 @@ export function FilterModal({
   isDark,
 }: FilterModalProps) {
   const [tempFilters, setTempFilters] = useState<FilterOptions>(currentFilters);
+  const dimensions = useWindowDimensions();
+
+  // Responsive breakpoints
+  const isMobile = dimensions.width < 768;
+  const isDesktop = dimensions.width >= 768;
 
   const theme = {
     background: isDark ? "#000" : "#fff",
@@ -422,37 +432,76 @@ export function FilterModal({
             borderTopColor: theme.border,
           }}
         >
-          <HStack space="md" style={{ width: "100%" }}>
-            <Button
-              variant="outline"
-              onPress={handleClearAll}
-              style={{
-                flex: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <ButtonText style={{ color: theme.text }}>Clear All</ButtonText>
-            </Button>
-            <Button
-              variant="outline"
-              onPress={onClose}
-              style={{
-                flex: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <ButtonText style={{ color: theme.text }}>Cancel</ButtonText>
-            </Button>
-            <Button
-              onPress={handleApply}
-              style={{
-                flex: 1,
-                backgroundColor: theme.accent,
-              }}
-            >
-              <ButtonText>Apply Filters</ButtonText>
-            </Button>
-          </HStack>
+          {!isMobile ? (
+            <HStack space="md" style={{ width: "100%" }}>
+              <Button
+                variant="outline"
+                onPress={handleClearAll}
+                style={{
+                  flex: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                <ButtonText style={{ color: theme.text }}>Clear All</ButtonText>
+              </Button>
+              <Button
+                variant="outline"
+                onPress={onClose}
+                style={{
+                  flex: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                <ButtonText style={{ color: theme.text }}>Cancel</ButtonText>
+              </Button>
+              <Button
+                onPress={handleApply}
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.accent,
+                }}
+              >
+                <ButtonText>Apply Filters</ButtonText>
+              </Button>
+            </HStack>
+          ) : (
+            <VStack space="md" style={{ width: "100%", height: 100 }}>
+              <HStack space="md" style={{ width: "100%" }}>
+                <Button
+                  variant="outline"
+                  onPress={handleClearAll}
+                  style={{
+                    flex: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <ButtonText style={{ color: theme.text }}>
+                    Clear All
+                  </ButtonText>
+                </Button>
+                <Button
+                  variant="outline"
+                  onPress={onClose}
+                  style={{
+                    flex: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <ButtonText style={{ color: theme.text }}>Cancel</ButtonText>
+                </Button>
+              </HStack>
+
+              <Button
+                onPress={handleApply}
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.accent,
+                }}
+              >
+                <ButtonText>Apply Filters</ButtonText>
+              </Button>
+            </VStack>
+          )}
         </ModalFooter>
       </ModalContent>
     </Modal>
