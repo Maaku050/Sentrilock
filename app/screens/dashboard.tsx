@@ -39,7 +39,7 @@ export type FilterOptions = {
   actions: string[];
 };
 
-const LOGS_PER_PAGE = 5;
+const LOGS_PER_PAGE = 15;
 
 export default function DashboardScreen() {
   const { logs, loading, error, roomsUI, rooms } = useLogs();
@@ -226,216 +226,271 @@ export default function DashboardScreen() {
     try {
       // Generate HTML for the print document
       const html = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Activity Logs Report</title>
-          <style>
-            body {
-              font-family: 'Times New Roman', Times, serif;
-              padding: 40px;
-              max-width: 900px;
-              margin: 0 auto;
-              color: #000;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #000;
-              padding-bottom: 15px;
-            }
-            h1 {
-              margin: 0 0 5px 0;
-              font-size: 24px;
-              font-weight: bold;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-            }
-            .report-date {
-              font-size: 12px;
-              color: #333;
-              font-style: italic;
-            }
-            .summary {
-              margin-bottom: 25px;
-              font-size: 13px;
-            }
-            .summary strong {
-              font-weight: bold;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-bottom: 20px;
-              font-size: 12px;
-            }
-            thead {
-              background-color: #000;
-              color: #fff;
-            }
-            th {
-              padding: 10px 8px;
-              text-align: left;
-              font-weight: bold;
-              text-transform: uppercase;
-              font-size: 11px;
-              letter-spacing: 0.5px;
-            }
-            td {
-              padding: 10px 8px;
-              border-bottom: 1px solid #ddd;
-              vertical-align: top;
-            }
-            tbody tr:nth-child(even) {
-              background-color: #f9f9f9;
-            }
-            tbody tr:hover {
-              background-color: #f0f0f0;
-            }
-            .action-cell {
-              font-weight: 600;
-            }
-            .action-authorized {
-              color: #047857;
-            }
-            .action-leaving {
-              color: #d97706;
-            }
-            .action-unauthorized {
-              color: #dc2626;
-            }
-            .action-admin {
-              color: #2563eb;
-            }
-            .room-cell {
-              font-family: monospace;
-              background-color: #f3f4f6;
-              padding: 4px 8px;
-              border-radius: 4px;
-              display: inline-block;
-            }
-            .no-data {
-              text-align: center;
-              padding: 40px;
-              color: #666;
-              font-style: italic;
-            }
-            .footer {
-              margin-top: 30px;
-              padding-top: 15px;
-              border-top: 2px solid #000;
-              text-align: center;
-              font-size: 11px;
-              color: #666;
-            }
-            @media print {
-              body {
-                padding: 20px;
-              }
-              table {
-                page-break-inside: auto;
-              }
-              tr {
-                page-break-inside: avoid;
-                page-break-after: auto;
-              }
-              thead {
-                display: table-header-group;
-              }
-              .footer {
-                position: fixed;
-                bottom: 0;
-                width: 100%;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Activity Logs Report</h1>
-            <p class="report-date">Generated on ${new Date().toLocaleString(
-              "en-US",
-              {
-                weekday: "long",
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentrilock Logs Report</title>
+
+  <style>
+    :root {
+      --accent: #2563eb;
+      --bg-soft: #f8fafc;
+      --border: #e5e7eb;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --success: #047857;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                   Roboto, Inter, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 48px;
+      background: #fff;
+      color: var(--text-main);
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 16px;
+      margin-bottom: 32px;
+    }
+
+    .brand {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+    }
+
+    .brand span {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .meta {
+      text-align: right;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ===== SUMMARY ===== */
+    .summary {
+      background: var(--bg-soft);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: 13px;
+      margin-bottom: 24px;
+    }
+
+    .summary strong {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    /* ===== TABLE ===== */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead {
+      background: var(--bg-soft);
+      border-bottom: 2px solid var(--border);
+    }
+
+    th {
+      text-align: left;
+      padding: 12px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    /* ===== CELLS ===== */
+    .action {
+      font-weight: 600;
+    }
+
+    .authorized { color: var(--success); }
+    .leaving { color: var(--warning); }
+    .unauthorized { color: var(--danger); }
+    .admin { color: var(--accent); }
+
+    .room {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #eef2ff;
+      color: #1e3a8a;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: inline-block;
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 48px;
+      font-style: italic;
+      color: var(--text-muted);
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      margin-top: 36px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    @media print {
+      body {
+        padding: 32px;
+      }
+
+      thead {
+        display: table-header-group;
+      }
+
+      tr {
+        page-break-inside: avoid;
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="brand">
+      <h1>Sentrilock Logs Report</h1>
+      <span>Security Activity & Access Monitoring</span>
+    </div>
+
+    <div class="meta">
+      Generated on<br/>
+      ${new Date().toLocaleString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })}
+    </div>
+  </div>
+
+  <div class="summary">
+    <strong>Total Records:</strong> ${filteredLogs.length}
+    ${
+      searchQuery || hasActiveFilters
+        ? `<span style="color: var(--text-muted);">
+            (filtered from ${logs.length} total)
+           </span>`
+        : ""
+    }
+  </div>
+
+  ${
+    filteredLogs.length === 0
+      ? `<div class="no-data">No activity logs available</div>`
+      : `
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 18%">Date & Time</th>
+        <th style="width: 26%">Action</th>
+        <th style="width: 16%">Room</th>
+        <th style="width: 40%">User</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filteredLogs
+        .map((log) => {
+          const cls =
+            log.action === "authorized_entry"
+              ? "authorized"
+              : log.action === "user_leaving"
+                ? "leaving"
+                : log.action === "unauthorized_attempt"
+                  ? "unauthorized"
+                  : log.action === "admin_control"
+                    ? "admin"
+                    : "";
+
+          const timestamp = log?.timestamp
+            ? log.timestamp.toDate().toLocaleString("en-US", {
+                month: "short",
+                day: "2-digit",
                 year: "numeric",
-                month: "long",
-                day: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
-              },
-            )}</p>
-          </div>
-          
-          <div class="summary">
-            <strong>Total Records:</strong> ${filteredLogs.length} ${searchQuery || hasActiveFilters ? `(filtered from ${logs.length} total)` : ""}
-          </div>
-          
-          ${
-            filteredLogs.length === 0
-              ? '<div class="no-data">No activity logs to display</div>'
-              : `
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 15%;">Date & Time</th>
-                <th style="width: 25%;">Action</th>
-                <th style="width: 15%;">Room</th>
-                <th style="width: 45%;">User</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredLogs
-                .map((log) => {
-                  const actionClass =
-                    log.action === "authorized_entry"
-                      ? "authorized"
-                      : log.action === "user_leaving"
-                        ? "leaving"
-                        : log.action === "unauthorized_attempt"
-                          ? "unauthorized"
-                          : log.action === "admin_control"
-                            ? "admin"
-                            : "";
+                hour12: true,
+              })
+            : "N/A";
 
-                  const timestamp = log?.timestamp
-                    ? log.timestamp.toDate().toLocaleString("en-US", {
-                        month: "short",
-                        day: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })
-                    : "N/A";
+          const user =
+            !log?.user?.name || log.user.name === "null"
+              ? "Unknown User"
+              : log.user.name;
 
-                  const userName =
-                    log?.user?.name === "null" || !log?.user?.name
-                      ? "Unknown User"
-                      : log.user.name;
+          return `
+          <tr>
+            <td>${timestamp}</td>
+            <td class="action ${cls}">${formatAction(log.action)}</td>
+            <td><span class="room">${log.roomId}</span></td>
+            <td>${user}</td>
+          </tr>
+        `;
+        })
+        .join("")}
+    </tbody>
+  </table>
+  `
+  }
 
-                  return `
-                <tr>
-                  <td>${timestamp}</td>
-                  <td class="action-cell action-${actionClass}">${formatAction(log.action)}</td>
-                  <td><span class="room-cell">${log.roomId}</span></td>
-                  <td>${userName}</td>
-                </tr>
-              `;
-                })
-                .join("")}
-            </tbody>
-          </table>
-          `
-          }
-          
-          <div class="footer">
-            <p>Activity Logs Report | Page 1 | Confidential</p>
-          </div>
-        </body>
-        </html>
-      `;
+  <div class="footer">
+    Sentrilock System • Confidential Security Report
+  </div>
+</body>
+</html>
+`;
 
       // Use expo-print for all platforms
       if (Platform.OS === "web") {
