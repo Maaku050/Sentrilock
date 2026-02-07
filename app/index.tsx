@@ -11,6 +11,7 @@ import {
   Platform,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -155,7 +156,7 @@ export default function LoginScreen() {
                   style={styles.loginButtonGradient}
                 >
                   {isLoading ? (
-                    <Text style={styles.loginButtonText}>Logging in...</Text>
+                    <ActivityIndicator color="#fff" />
                   ) : (
                     <>
                       <Ionicons name="log-in-outline" size={20} color="#FFF" />

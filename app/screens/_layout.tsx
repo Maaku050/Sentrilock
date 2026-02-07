@@ -112,7 +112,7 @@ function LogoutButton() {
           </ModalHeader>
 
           <ModalBody>
-            <Text style={{ color: "#374151", fontSize: 14 }}>
+            <Text style={{ color: "#ffffff", fontSize: 14 }}>
               Are you sure you want to log out of your account?
             </Text>
           </ModalBody>

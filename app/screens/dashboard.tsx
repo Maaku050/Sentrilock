@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from "react-native";
 import { useTheme } from "./_layout";
 import { useLogs } from "@/context/dashboardContext";
@@ -29,6 +30,7 @@ import NotificationHandler from "@/components/NotificationHandler";
 import { SecurityAlertBanner } from "@/components/SecurityAlertBanner";
 import Pagination from "@/components/customPagination";
 import * as Print from "expo-print";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export type FilterOptions = {
   dateRange: {
@@ -533,13 +535,21 @@ export default function DashboardScreen() {
           style={{ ...styles.container, backgroundColor: theme.background }}
           showsVerticalScrollIndicator={false}
         >
-          <View>
-            {roomsUI.map((room) => (
-              <View key={room.id} style={styles.roomGridItem}>
-                <RoomCard room={room} isDark={isDark} />
-              </View>
-            ))}
-          </View>
+          {loading ? (
+            <Skeleton
+              variant="rounded"
+              className="h-[250px]"
+              style={{ marginBottom: 15 }}
+            />
+          ) : (
+            <View>
+              {roomsUI.map((room) => (
+                <View key={room.id} style={styles.roomGridItem}>
+                  <RoomCard room={room} isDark={isDark} />
+                </View>
+              ))}
+            </View>
+          )}
 
           <ScrollView horizontal>
             <View
@@ -548,6 +558,7 @@ export default function DashboardScreen() {
                 {
                   backgroundColor: theme.cardBg,
                   borderColor: theme.border,
+                  height: 600,
                 },
               ]}
             >
@@ -807,11 +818,9 @@ export default function DashboardScreen() {
                 style={styles.logsContent}
                 showsVerticalScrollIndicator={false}
               >
-                {loading && (
-                  <Text style={{ color: theme.textMuted }}>
-                    Loading logs...
-                  </Text>
-                )}
+                {loading ? (
+                  <ActivityIndicator color="#fff" style={{ marginTop: 150 }} />
+                ) : null}
                 {error && <Text style={{ color: "red" }}>{error}</Text>}
 
                 {!loading && filteredLogs.length === 0 && (
@@ -963,13 +972,21 @@ export default function DashboardScreen() {
           style={{ ...styles.container, backgroundColor: theme.background }}
           space="md"
         >
-          <View style={styles.roomGrid}>
-            {roomsUI.map((room) => (
-              <View key={room.id} style={styles.roomGridItem}>
-                <RoomCard room={room} isDark={isDark} />
-              </View>
-            ))}
-          </View>
+          {loading ? (
+            <Skeleton
+              variant="rounded"
+              className="h-[250px]"
+              style={{ flex: 1 }}
+            />
+          ) : (
+            <View style={styles.roomGrid}>
+              {roomsUI.map((room) => (
+                <View key={room.id} style={styles.roomGridItem}>
+                  <RoomCard room={room} isDark={isDark} />
+                </View>
+              ))}
+            </View>
+          )}
 
           <View
             style={[
@@ -1229,9 +1246,9 @@ export default function DashboardScreen() {
               style={styles.logsContent}
               showsVerticalScrollIndicator={false}
             >
-              {loading && (
-                <Text style={{ color: theme.textMuted }}>Loading logs...</Text>
-              )}
+              {loading ? (
+                <ActivityIndicator color="#fff" style={{ marginTop: 150 }} />
+              ) : null}
               {error && <Text style={{ color: "red" }}>{error}</Text>}
 
               {!loading && filteredLogs.length === 0 && (
